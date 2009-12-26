@@ -1,0 +1,107 @@
+= wiki =
+== Goals ==
+Simple Wikiengine (in compare to MediaWiki<ref>http://www.mediawiki.org</ref>)
+=== Components ===
+* wiki.awk: text prozessor
+* wiki.cgi: symlink to wiki.awk
+==== Optional ====
+* wiki.css: Stylesheet
+* header: <span style='color:red'>TODO</span>
+* footer: <span style='color:red'>TODO</span>
+=== Syntax ===
+Be compatible with the MediaWiki-Textformat <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> and/or <ref>http://moinmo.in/</ref>
+==== Numbered list ====
+# a
+# b
+#* c
+#* d [http://www.lala.org]
+# e
+## g
+## h
+==== Bullet list ====
+* a
+* b
+*# c
+*# d
+* e
+** g
+** h
+
+==== Mixed list ====
+see [[#Bullet list]] & [[#Numbered list]]
+
+=== Preformatted text ==
+==== single line code ====
+ code#
+
+==== multi line code ====
+ code# pwd
+ /
+==== HTML tag: &lt;pre&gt; =====
+{<pre>
+pre-
+formatet
+text</pre>}
+
+==== Links ====
+*local link [[#Syntax]]
+*internal link to [[other]] wiki page <ref>http://www.mediawiki.org/wiki/Help:Links#Internal_links</ref>
+*piped link with different text [[papierformat|a3]] <ref>http://www.mediawiki.org/wiki/Help:Links#Interwiki_links</ref>
+*external link to other websites http://www.heise.de <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*external link with different text [http://www.heise.de heise online] <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*external link numbered [http://www.kernel.org] <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*HTML link <a href="http://www.heise.de">go to heise.de</a>
+
+==== Tables <ref>http://www.mediawiki.org/wiki/Help:Tables</ref> ====
+# example
+{| border="1"
+| Orange || Apple     || 12,333.00
+|-
+| Bread  || Pie       || 500.00
+|-
+| Butter || Ice cream || 1.00
+|}
+# example
+{| border="1"
+|Orange
+|Apple
+|align="right" | 12,333.00
+|-
+|Bread
+|Pie
+|align="right" | 500.00
+|-
+|Butter
+|Ice cream
+|align="right" | 1.00
+|}
+# example
+{| border="1"
+|-
+|Orange
+|Apple
+|align="right" | 12,333.00
+|-
+|Bread
+|Pie
+|align="right" | 500.00
+|-
+|Butter
+|Ice cream
+|align="right" | 1.00
+|}
+
+=== TODOs ===
+Multible and/or grouped cites<ref>http://www.mediawiki.org/wiki/Extension:Cite/Cite.php#Usage</ref> with <code>&lt;ref&gt;</code> aren't supported.
+
+== Sample Pages ==
+* [[linux-compare]]
+* [[other]]
+* [[not existing page]]
+
+== Links ==
+* http://de.wikipedia.org/wiki/Creole_(Markup)
+* http://de.wikipedia.org/wiki/MediaWiki
+* http://www.wikicreole.org/
+
+

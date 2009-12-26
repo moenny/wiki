@@ -1,0 +1,60 @@
+= wiki =
+== Goals ==
+Simple Wikiengine (in compare to MediaWiki<ref>[http://www.mediawiki.org]</ref>)
+=== Components ===
+* wiki.awk: text prozessor
+* wiki.cgi: symlink to wiki.awk
+==== Optional ====
+* wiki.css: Stylesheet
+* header: <span style='color:red'>TODO</span>
+* footer: <span style='color:red'>TODO</span>
+=== Syntax ===
+Be compatible with the MediaWiki-Textformat <ref>[http://www.mediawiki.org/wiki/Help:Formatting]</ref> and/or <ref>http://moinmo.in/</ref>
+==== Numbered list ====
+# a
+# b
+#* c
+#* d [http://www.lala.org]
+# e
+## g
+## h
+==== Bullet list ====
+* a
+* b
+*# c
+*# d
+* e
+** g
+** h
+
+==== Mixed list ====
+see [[#Bullet list]] & [[#Numbered list]]
+
+=== Preformatted text ==
+==== single line code ====
+ code#
+
+==== multi line code ====
+ code# pwd
+ /
+==== HTML tag: 'pre' =====
+{<pre>
+pre-
+formatet
+text</pre>}
+
+==== Links ====
+*local link [[#Syntax]]
+*internal link [[other]]
+*internal link with special text [papierformat|a3]] 
+*external link [http://www.heise.de]
+*external link with special text [http://www.heise.de Heise.de]
+*HTML link <a href="http://www.heise.de">go to heise.de</a>
+
+== TODO ==
+# siehe<ref>http://www.lala.org</ref>for more inf
+# oder auch <ref>[http://www.lala.org]</ref>for more inf
+
+
+
+
