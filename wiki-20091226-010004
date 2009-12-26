@@ -1,0 +1,21 @@
+= wiki =
+== Syntax ==
+likely MediaWiki<ref>[http://www.mediawiki.org]</ref>
+=== num list ===
+# a
+# b
+#* c
+#* d [http://www.lala.org]
+# e
+## g
+## h
+=== anon list ===
+* a
+* b
+*# c
+*# d
+* e
+** g
+** h
+
+

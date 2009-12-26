@@ -1,0 +1,67 @@
+body { background-color: #eee ; color: #222 ; }
+th { background-color: #ddd; }
+tr.even { background-color: #e8e8e8; }
+tr.odd  { background-color: #f0f0f0; }
+pre { background-color: #222 ; color: #eee ; border: 1px; }
+.tool, .ref { 
+    color:#002;
+    text-decoration:none;
+    }
+
+a.intern {
+    color: #484;
+}
+a.local {
+    color: #848;
+}
+a.intern_missing {
+    color: #844;
+}
+a.extern {
+    color: #448;
+}
+    
+a.tool, input.tool {
+    padding: 2px;
+    margin-left: 3px;
+    margin-right: 3px;
+    background-color: #888;
+    border-top:    3px solid #aaa;
+    border-left:   1px solid #aaa;
+    border-bottom: 3px solid #666;
+    border-right:  1px solid #666;
+}
+a.tool:hover, input.tool:hover {
+    background-color: #088;
+    border-top:    2px solid #0aa;
+    border-left:   1px solid #0aa;
+    border-bottom: 2px solid #066;
+    border-right:  1px solid #066;
+}
+
+.tool:hover,.ref:hover { 
+    color:#002;
+
+    text-decoration:underline; 
+    }
+a {
+    text-decoration:none; 
+}
+a:hover {
+    text-decoration:underline; 
+}
+textarea {
+    color: #000;
+    background-color: #ccc;
+}
+h1, h2, h3 {
+/*    border-bottom: 1px solid #ddd;*/
+    border-bottom: 1px dotted #ddd;
+}
+
+/*input.tool { border: none; }*/
+/* DEBUG */
+p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
+    background-color:#ffffff;
+}
+
