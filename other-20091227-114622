@@ -1,0 +1,28 @@
+= other =
+new test page
+|=Heading Col 1 |=Heading Col 2         |
+|Cell 1.1       |Two lines\\in Cell 1.2 |
+|Cell 2.1       |Cell 2.2               |
+= lala =
+---- 
+
+== creole ==
+: A**bold**E
+: A//italics//E
+: A**//bold & italic//**E
+: A//**italics & bold**//E
+** A**bold** und **nocma**E 
+
+: A//** nix //**E
+: A**// nox **//E
+
+== mediawiki ==
+''italic''
+'''bold'''
+'''''bold & italic'''''
+----
+
+[[text|back to home]]
+
+
+
