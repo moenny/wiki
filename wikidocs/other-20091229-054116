@@ -1,0 +1,52 @@
+= other =
+new test page
+|=Heading Col 1 |=Heading Col 2         |
+|Cell 1.1       |Two lines\\in Cell 1.2 |
+|Cell 2.1       |Cell 2.2               |
+= lala =
+---- 
+
+== creole ==
+: A**bold**E
+: A//italics//E
+: A**//bold & italic//**E
+: A//**italic & bold**//E
+** A**bold** und **nocma**E 
+: A**bold** | //italic//E
+: A//italic// | **bold**E
+
+: A//** nix //**E
+: A**// nox **//E
+
+: A** la //*E
+: A//**li //E
+
+
+== mediawiki ==
+'nix'
+''italic''
+'''bold'''
+'''''bold & italic'''''
+----
+
+preformatted text is done with
+a '''space''' at the 
+''beginning'' of the line
+
+=== preformatet ===
+ preformatted text is done with
+ a '''space''' at the 
+ ''beginning'' of the line
+
+=== pre ===
+<pre>
+ preformatted text is done with
+ a '''space''' at the 
+ ''beginning'' of the line
+</pre>
+
+
+[[text|back to home]]
+
+
+

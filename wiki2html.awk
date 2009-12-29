@@ -5,12 +5,15 @@
 # vim:sts=4:ts=8
 
 BEGIN {
-    OPT["DEFAULT_DOC"] = "wiki";
+    OPT["DEFAULT_DOC"] = "toc";
     OPT["USE_SYMLINK"] = 1;
     OPT["MAX_DEBUG"]   = 2;
-    OPT["DRAFT_FILE"]  = "/tmp/wiki-draft-%s";
+    OPT["ALLOW_EDIT"]  = 1;
+    OPT["TMP_PREFIX"]  = "/tmp/wiki-draft-";
     OPT["PROC_UPTIME"] = "/proc/uptime";
-    OPT["CSS_SCREEN"]    = "../wiki.css";
+    OPT["CSS_SCREEN"]  = "../wiki.css";
+    OPT["DOC_DIR"]     = "wikidocs";
+    OPT["DRAFT_VIEW"]  = 1;
 
     UPTIME = uptime();
     
@@ -35,8 +38,15 @@ BEGIN {
     DST_FILE = "";
     SRC_FILE = "";
 
+    CGI[0] = 0;
+
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/) {
-	SELF = "http://" ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"]
+	
+	if (OPT["DOC_DIR"] !~ /^\// \
+	    && match(ENVIRON["SCRIPT_FILENAME"], /^(.*\/)([^\/]+)$/, ary))
+	    OPT["DOC_DIR"] = ary[1] OPT["DOC_DIR"];
+	
+	SELF = "http://" ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"];
 	if (ENVIRON["REQUEST_METHOD"] == "POST") {
 	    getline query < ("/dev/stdin");
 	    close("/dev/stdin");
@@ -61,44 +71,84 @@ BEGIN {
 		&& 3 <= RLENGTH -1 && RLENGTH <= 32 \
 		) {
 	    ARGC =1;
-	    DOC = gensub(/_/, " ", "g", ary[1]);
+	    DOC = gensub(/_/, " ", "g", docfile = ary[1]);
 
-	    if (OPT["DRAFT_FILE"])
+	    SRC_FILE = OPT["DOC_DIR"] "/" docfile;
+
+	    if (OPT["DRAFT_VIEW"]) {
+		draftfile = SRC_FILE ".draft";
+	    } else {
+		if (CGI["mode"] ~ /^(draft|edit-draft|diff-draft)$/)
+		    CGI["mode"] = "";
+
+		draftfile = OPT["TMP_PREFIX"] docfile;
+	    }
+	    
+	    if (OPT["ALLOW_EDIT"])
 		RW = ! ( (OPT["USE_SYMLINK"]) \
-		       ?  system("test -L " ary[1] " -a -w " ary[1]) \
-		       :  system("test -w " ary[1]) \
+		       ?  system("test -L " SRC_FILE " -a -w " OPT["DOC_DIR"]) \
+		       :  system("test -w " SRC_FILE) \
 		       );
 
 	    # FIXME: allow create docs ?
-	    if ((stat = f_readable(ary[1])) < 0) {
-		if (OPT["DRAFT_FILE"]) RW = 2; 
-		if (CGI["mode"] == "edit" && ! CGI["txt"]) 
+	    if ((stat = f_readable(SRC_FILE)) < 0) {
+		SRC_FILE = "";
+		if (OPT["ALLOW_EDIT"]) RW = 2; 
+		if (CGI["mode"] == "edit" && ! CGI["txt"]) {
 		    CGI["txt"] = sprintf("= %s =\n", DOC);
-	    } else { # file exists
-		SRC_FILE = ary[1];
+		    CGI["mode"] = "preview";
+		}
 	    }
+	    if (! RW && (  CGI["mode"] == "save" \
+			|| CGI["mode"] == "preview" \
+		        || CGI["mode"] == "diff-edit" \
+			|| CGI["mode"] == "edit" \
+			|| CGI["mode"] == "edit-draft" \
+			|| CGI["mode"] == "discard" \
+			)) CGI["mode"] = "";
 
-	    if (RW && CGI["mode"] == "save") {
-		DST_FILE = ary[1];
+	    if (CGI["mode"] ~ /^(save|discard)$/) {
+#		printf "zeroing %s\n", draftfile >> "/dev/stderr";
+		printf "" > draftfile;
+		close(draftfile);
+		if (CGI["mode"] == "discard") {
+		    printf "Location: %s/%s\n\n", SELF, docfile;
+		    exit;
+		}
+		savefile = OPT["DOC_DIR"] "/"  docfile;
 		if (OPT["USE_SYMLINK"])
 		    if(system(sprintf("ln -sfn %s%s %s" \
-		       , DST_FILE, strftime("-%Y%m%d-%H%M%S"), DST_FILE)))
+		       , savefile, strftime("-%Y%m%d-%H%M%S"), savefile)))
 			errstr = "can't create symlink";
-	    } else if ( RW \
-		    && (  CGI["mode"] == "preview" \
-		       || CGI["mode"] == "diff" \
-		       || (CGI["mode"] == "edit" && stat <= 0 )\
-		    )) {
-		DST_FILE = sprintf(OPT["DRAFT_FILE"], DOC);
+	    } else if (  CGI["mode"] == "preview" \
+		     ||  CGI["mode"] == "diff-edit" \
+		    ) {
+		DST_FILE = savefile = draftfile; # for diff
 	    } else {
-		ARGV[ARGC++] = SRC_FILE;
+		viewfile = SRC_FILE;
+
+		if (OPT["DRAFT_VIEW"] && f_readable(draftfile) > 0) {
+		    DST_FILE = draftfile; # for diff
+
+		    if (CGI["mode"] == "draft") {
+			viewfile = DST_FILE;
+		    } else if (CGI["mode"] == "edit-draft") {
+			viewfile = DST_FILE;
+			CGI["mode"] = "edit";
+		    }
+		}
+		ARGV[ARGC++] = viewfile;
 	    }
 	    
-	    if (DST_FILE) {
-		printf "writing %s\n", DST_FILE >> "/dev/stderr";
-		printf "%s", CGI["txt"] > DST_FILE;
-		close(DST_FILE);
-		ARGV[ARGC++] = DST_FILE;
+	    if (savefile) {
+#		printf "writing %s\n", savefile >> "/dev/stderr";
+		printf "%s", CGI["txt"] > savefile;
+		close(savefile);
+		if (CGI["mode"] == "save") {
+		    printf "Location: %s/%s\n\n", SELF, docfile;
+		    exit;
+		}
+		ARGV[ARGC++] = savefile;
 	    } 
 	} else
 	    errstr = sprintf("Invalid document: %s\n",ENVIRON["PATH_INFO"]);
@@ -112,12 +162,14 @@ BEGIN {
     html_tag("title");
     text2html(((CGI["mode"]) ? "" CGI["mode"] ":" : "") DOC);
     html_close("title");
-#    printf "<link rel='stylesheet' media='screen' href='../wiki.css'>";
 
-    print "\n  <meta http-equiv='Content-type' content='text/html;charset=UTF-8'>";
+    html_tag("meta", "http-equiv='Content-type' content='text/html;charset=UTF-8'");
+
+    if (CGI["refresh"] && ! CGI["mode"])
+	html_tag("meta", "http-equiv='refresh' content='7'");
 
     if (OPT["CSS_SCREEN"])
-        printf "  <link rel='stylesheet' media='screen' type='text/css' href='%s'>", OPT["CSS_SCREEN"];
+	html_tag("link", sprintf("rel='stylesheet' media='screen' type='text/css' href='%s'", OPT["CSS_SCREEN"]));
 
     html_tag();
     html_tag("body");
@@ -125,18 +177,27 @@ BEGIN {
 	printf "<p class='error'>%s</p>\n", errstr;
 	exit;
     }
-
-
-    print "<pre>";
-
-#    for (v in CGI) printf "%s='%s'\n", v, CGI[v];
     if (CGI["debug"] >= 2) {
+	html_tag("pre");
         printf "ARGC=%s\nARGIND=%s\n<hr>",ARGC,ARGIND;
-	system("env");
+	
+	printf "PROCINFO\n"
+	for (v in PROCINFO) printf " %s=%s\n", v, PROCINFO[v];
+
+	printf "ENVIRON\n"
+	for (v in ENVIRON) printf " %s=%s\n", v, ENVIRON[v];
+	
+	printf "CGI\n"
+	for (v in CGI) printf " %s=%s\n", v, CGI[v];
+
+	printf "OPT\n"
+	for (v in OPT) printf " %s=%s\n", v, OPT[v];
+
+#	system("env");
+	html_close("pre");
     }
-    print "</pre>";
     
-    if (CGI["mode"] == "diff") {
+    if (CGI["mode"] == "diff-edit" || CGI["mode"] == "diff-draft") {
 	if (! DST_FILE || ! SRC_FILE) {
 	    printf "nix file (src=%s dst=%s)", SRC_FILE, DST_FILE;
 	    CGI["mode"] = "";
@@ -158,21 +219,25 @@ BEGIN {
 	html_close("th");
 	html_close("tr");
 	while (( cmd | getline) > 0) {
-	    if (++line <= 2 || $0 !~ /^[ \+\-]/) {
+	    if (++line <= 2) {
+		;
+	    } else if ($0 !~ /^[ \+\-]/) {
+	        html_tag("tr");
+	        html_tag("td", "colspan='4' align='center'");
 		if (match($0, /^@@ -([0-9]+),([0-9]+) \+([0-9]+),([0-9]+) @@/, ary)) {
 		    src_start = ary[1];
 		    dst_start = ary[3];
 
-		    html_tag("tr");
-		    html_tag("td", "colspan='4' align='center'");
 		    print "...";
-		    html_close("td");
-		    html_close("tr");
+		} else {
+		    printf "<code>%s</code>\n", $0;
 		}
-		src_row[0] = 0;
-		src_ptr = 1;
+	        html_close("td");
+	        html_close("tr");
+	        src_row[0] = 0;
+	        src_ptr = 1;
 	    } else {
-		code = raw2html(substr($0, 2));
+		code = raw2html(substr($0, 2), 1);
 		if ((c = substr($0, 1, 1)) == "-") {
 		    src_row[++src_row[0]] = code;
 		} else {
@@ -184,7 +249,8 @@ BEGIN {
 			while(src_ptr <= last) {
 			    diff_html(src_start ++,src_row[src_ptr++]\
 				, (c == "+") ? "diff_mod" : "diff_out");
-			    if (last != first) {
+#			    if (last != first) {
+			    if (c != "+") {
 				print "<td colspan='2'></td>";
 				html_close("tr");
 				html_tag("tr");
@@ -222,7 +288,9 @@ BEGIN {
     }
 }
 END {
-    if (TAG[0] > 0 && TAG[TAG[0]] ~ /^(pre)$/) html_tag("");
+    if (CGI["mode"] ~ /^(save|discard)$/) exit;
+#    if (TAG[0] > 0 && TAG[TAG[0]] ~ /^(pre)$/) html_tag("");
+
     if (REF[0] && TAG[0]) {
 	html_tag("h2");
 	text2html("References");
@@ -238,12 +306,13 @@ END {
 	}
 	html_close("ol");
     }
+    html_tag("hr"); # DUMMY
 
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/ && TAG[0]) {
 
 	if (RW && (CGI["mode"] == "edit" \
 		|| CGI["mode"] == "preview" \
-		|| CGI["mode"] == "diff" \
+		|| CGI["mode"] == "diff-edit" \
 		)) {
 	    if (CGI["mode"] == "edit") CGI["txt"] = RAW;
 	    printf "<a name='edit'></a>";
@@ -256,7 +325,8 @@ END {
 	    printf "\n<textarea style='width:100%' rows='25' name='txt'>%s</textarea>",txt;
 	    printf ("<div style='width:100%;' class='tool'>");
 	    ary[0] = split("preview save cancel",ary);
-	    if (SRC_FILE) ary[++ary[0]] = "diff";
+	    if (OPT["DRAFT_VIEW"]) ary[++ary[0]] = "discard";
+	    if (SRC_FILE) ary[++ary[0]] = "diff-edit";
 	    for (i = 1; i <= ary[0]; i ++)
 		printf "<input type='submit' name='mode' value='%s' class='tool'>", ary[i];
 	    printf "</div>\n";
@@ -266,10 +336,17 @@ END {
 	    printf "<a href='%s?mode=' class='tool'>toc</a>\n", SELF;
 
 	    printf "<a href='?mode=' class='tool'>reload</a>\n";
-	    if (SRC_FILE || DST_FILE)
+	    
+	    if (SRC_FILE)
 	        printf "<a href='?mode=source' class='tool'>source</a>\n";
 	    
-	    if (RW)
+	    if (DST_FILE && OPT["DRAFT_VIEW"]) {
+	        printf "<a href='?mode=draft' class='tool'>draft</a>\n";
+		if (SRC_FILE) 
+		    printf "<a href='?mode=diff-draft' class='tool'>diff-draft</a>\n";
+		if (RW) 
+		    printf "<a href='?mode=edit-draft' class='tool'>edit-draft</a>\n";
+	    } else if (RW)
 		printf "<a href='?mode=edit#edit' class='tool'>edit</a>\n";
 	    printf "</div>\n";
 	}
@@ -305,7 +382,7 @@ function diff_html (row, text, class) {
 }
 function f_readable (file, c) {
     if (file ~ /^\/dev\/std(out|err)/) return 0;
-    if (file ~ /[\/\?\*]/) exit; # FIXME ?
+#    if (file ~ /[\/\?\*]/) exit; # FIXME ?
     c = getline < (file);
     close(file);
     return c;
@@ -367,7 +444,8 @@ function html_tag(tag,attr, i) {
     else if (tag == "tr")
 	attr = " class='" ((++TR_COUNT % 2) ? "even" : "odd") "'";
 
-    printf "<%s%s>", TAG[++TAG[0]] = tag, attr;
+    if (tag !~ /^(br|hr|link|meta)$/) TAG[++TAG[0]] = tag;
+    printf "<%s%s>", tag, attr;
 }
 
 function ary_index(ary, element, i) {
@@ -390,10 +468,22 @@ function detect_align(text,  lspaces, rspaces) {
 	return "right";
 
 }
-function raw2html(str) {
+function raw2html(str, full) {
     gsub(/\&/, "\\&amp;", str);
-    gsub(/</, "\\&lt;", str);
-    gsub(/>/, "\\&gt;", str);
+
+    gsub(/(\xc4|\xc3\x84)/, "\\&Auml;", str);
+    gsub(/(\xe4|\xc3\xa4)/, "\\&auml;", str);
+    gsub(/(\xd6|\xc3\x96)/, "\\&Ouml;", str);
+    gsub(/(\xf6|\xc3\xb6)/, "\\&ouml;", str);
+    gsub(/(\xdc|\xc3\x9c)/, "\\&Uuml;", str);
+    gsub(/(\xfc|\xc3\xbc)/, "\\&uuml;", str);
+    gsub(/(\xdf|\xc3\x9f)/, "\\&szlig;", str);
+    gsub(/(\xa4|\xe2\x82\xac)/, "\\&euro;", str);
+
+    if (full) {
+        gsub(/</, "\\&lt;", str);
+	gsub(/>/, "\\&gt;", str);
+    }
     return str;
 }
 function rindex(str, find, i) {
@@ -463,8 +553,11 @@ function formating(str \
     return str;
 }
 function text2html(str,  class, ary, left, start, e) {
-    left = 0;
+
     gsub(/\r/, "", str);
+
+    # check <ref>..</ref>
+    left = 0;
     while (match(substr(str, left +1), /<ref[^>]*>/)) {
 	start = left + RSTART + RLENGTH;
 	left += RSTART -1;
@@ -479,6 +572,7 @@ function text2html(str,  class, ary, left, start, e) {
 	}
     }
 
+    # checking links
     left = "";
     while ((e = match(str,/(^|[^\[])\[(http:\/\/[^[:space:]\]]+)([[:space:]]*([^\]]+))?(\])/, ary)) \
 	  || match(str,/()\[\[([^\]\|]+)(\|([^\]]+))?\]\]/, ary) \
@@ -491,7 +585,7 @@ function text2html(str,  class, ary, left, start, e) {
 	} else if (ary[2] ~ /^[^\/]+$/) { # internal
 	    if (! ary[4]) ary[4] = ary[2];
 	    gsub(/ /, "_", ary[2]);
-	    if (f_readable(ary[2]) > 0)
+	    if (f_readable(OPT["DOC_DIR"] "/" ary[2]) > 0)
 		class = "intern";
 	    else 
 		class = "intern_missing";
@@ -507,7 +601,12 @@ function text2html(str,  class, ary, left, start, e) {
 		    , ary[2], class, (ary[4]) ? ary[4] : ary[2]);
 	str = substr(str, RSTART + length(ary[1]) + RLENGTH);
     }
-    printf "%s", formating(left str);
+    str = left str;
+
+    # creole linebreak
+    gsub(/\\\\/, "<br>", str);
+    
+    printf "%s", formating(raw2html(str));
 #    printf "%s", (left str);
 }
 function trim(str, f) {
@@ -518,10 +617,11 @@ function trim(str, f) {
 }
 // {
     RAW = RAW $0 "\n";
-    if (CGI["debug"]) printf "<!-- %s -->", $0;
+    if (CGI["debug"]) printf "\n<!-- %s -->", $0;
     if (CGI["mode"] == "source") {
-	if (TAG[0] == 0 || TAG[TAG[0]] != "pre") html_tag("pre");
-	print raw2html($0);
+	if (TAG[0] == 0 || TAG[TAG[0]] != "pre") 
+	    html_tag("pre"); #, "class='CSS Text'");
+	print raw2html($0, 1);
 	next;
     }
 }
@@ -529,7 +629,7 @@ function trim(str, f) {
 # Creole table
 ! TABLE && match($0, /^\|/,ary) {
     str = substr($0, RSTART + RLENGTH);
-
+    if (str !~ /[[:space:]]*\|$/) str = str "|";
     if (! CREOLE_TABLE) {
 	CREOLE_TABLE = 1;
 	html_tag("table");
@@ -656,7 +756,8 @@ match($0, /^([#;:]+)/) || ($0 ~ /^\*/ && match(formating($0), /^(\*+)/)) {
 match($0, /^ /) {
 #       printf "<!-- last TAG(%d)='%s'-->", TAG[0],TAG[TAG[0]];
    if (TAG[0] == 0 || TAG[TAG[0]] != "pre") html_tag("pre");
-   printf "%s\n", substr($0, RSTART + RLENGTH);
+   text2html(substr($0, RSTART + RLENGTH));
+   printf "\n";
    next;
 }
     
