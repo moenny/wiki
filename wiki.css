@@ -80,7 +80,9 @@ p.error {
     color: #844;
 /*    background-color: #ddd;*/
 }
-
+img.bordered {
+    border: 2px solid #888;
+}
 
 p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
     background-color:#ffffff;

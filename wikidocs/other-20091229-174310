@@ -1,0 +1,100 @@
+= other =
+.. [[wiki]] ..
+
+== horizontal line ==
+----
+
+== creole ==
+: A**bold**E
+: A//italics//E
+: A**//bold & italic//**E
+: A//**italic & bold**//E
+** A**bold** und **nocma**E 
+: A**bold** | //italic//E
+: A//italic// | **bold**E
+
+: A//** nix //**E
+: A**// nox **//E
+
+: A** la //*E
+: A//**li //E
+
+=== table ===
+with ending |
+|=Heading Col 1 |=Heading Col 2         |
+|Cell 1.1       |Two lines\\in Cell 1.2 |
+|Cell 2.1       |Cell 2.2 äöüß          |
+
+with ending \n
+|=Heading Col 1 |=Heading Col 2         
+|Cell 1.1       |Two lines\\in Cell 1.2
+|Cell 2.1       |Cell 2.2 ÄÖÜ€
+
+== mediawiki ==
+'nix'
+''italic''
+'''bold'''
+'''''bold & italic'''''
+----
+
+preformatted text is done with
+a '''space''' at the 
+''beginning'' of the line
+
+=== preformated ===
+ preformatted text is done with
+ a '''space''' at the 
+ ''beginning'' of the line
+
+=== pre ===
+<pre>
+ preformatted text is done with
+ a '''space''' at the 
+ ''beginning'' of the line
+</pre>
+
+== Creole ==
+
+=== Images ===
+* Creole link to image http://www.wikicreole.org/attach/LeftMenuLogo/globe_logo.png
+* Creole image {{http://www.wikicreole.org/attach/LeftMenuLogo/globe_logo.png}} without alternative text 
+* Creole image {{http://www.wikicreole.org/attach/LeftMenuLogo/globe_logo.png|this is a image}} with alternative text 
+* Creole image [http://www.heise.de {{http://www.heise.de/icons/ho/heise_online_logo.gif|heise logo}}] in MediaWiki link 
+* Creole image [[http://www.heise.de|{{http://www.heise.de/icons/ho/heise_online_logo.gif|heise logo}}]] in Creole (& MediaWiki internal-) link
+
+=== Nowiki (Preformatted) ===
+{{{
+//This// does **not** get [[formatted]] 
+}}}
+
+Some examples of markup are: {{{** <i>this</i> ** }}}
+another examples of markup are: A{{{B** <i>this</i> ** C}}}D
+
+==== Closing braces in nowiki ====
+{{{
+if (x != NULL) {
+  for (i = 0; i < size; i++) {
+    if (x[i] > 0) {
+      x[i]--;
+  }}}
+}}}
+
+=== Escape Character ===
+~#1
+http://www.foo.com/~bar/
+~http://www.foo.com/
+CamelCaseLink
+~CamelCaseLink
+
+=== Bold and/or italic links ===
+//[[Important page|this link is italicized]]//
+**[[Important page]]**
+//**[[Important page]]**//
+
+=== Bold, Italics, Links, Pre in Lists ===
+* **bold** item
+* //italic// item
+# item about a [[certain page]]
+# {{{ //this// is **not** [[processed]] }}}
+
+[[text|back to home]]

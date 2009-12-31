@@ -1,0 +1,168 @@
+= wiki =
+== Goals ==
+Simple Wikiengine (in compare to MediaWiki<ref>http://www.mediawiki.org</ref>)
+
+=== Changes ===
+; wiki-200912??.tgz
+: bugfix: cell alignment detection in tables
+: added: optional authorization ...
+: added: support for creole images, nowiki tag ~{~{~{ and escape character ~
+: added: basic support for MediaWiki images and some image attributes
+
+; wiki-20091229.tgz
+: bugfix: parse wiki tags in preformated text with space at the beginning of the line
+: bugfix: more special character translations
+: bugfix: handle creole tables without ending | correctly
+: bugfix: parse wiki tags in creole tables
+: added: support for creole line break
+: added: support to view, diff, edit and discard the draft file (when OPT["DRAFT_VIEW"] enabled)
+: added: OPT["DOC_DIR"]
+
+; wiki-20091227.tgz **(first release)**
+: bugfix: save dosn't append new line on each row 
+: bugfix: misc code cleanups
+: added: support for MediaWiki compatible attributes on table rows <ref>[[http://www.mediawiki.org/wiki/Help:Tables#Attributes_on_rows]]</ref>, [[# Definition list|definition lists]] <ref>[[http://www.mediawiki.org/wiki/Help:Formatting#Text formatting markup]]</ref>
+: added: support for creole & MediaWiki [[#Character formatting]]
+: added: diff mode during editing
+: changed: [[#cell alignment detection]] improved
+
+; wiki-20091226a.tgz //(never released)//
+: bugfix: handle numbered external links
+: bugfix: handle simplest wiki markup table structure
+: bugfix: check write permission before edit mode allowed
+: added: support for creole tables <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Tables</ref>, horizontal rules <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-HorizontalRule</ref>, line breaks <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-LineBreaks</ref>
+: changed: cells with numbers are right aligned by default
+
+; wiki-20091226.tgz //(never released)//
+: initial:
+
+=== Components ===
+* [[/wiki2html.awk|wiki2html.awk]]: text prozessor
+* [[/wiki.cgi|wiki.cgi]]: symlink to wiki2html.awk
+
+==== Optional ====
+* [[/wiki.css|wiki.css]]: Stylesheet
+* header: <span style='color:red'>TODO</span>
+* footer: <span style='color:red'>TODO</span>
+
+=== Limits ===
+The page name must be between 3 and 32 characters long. They can contain letters (A-Z, a-z), numbers (0-9) or underscores (_).
+
+=== Syntax ===
+Be compatible with the MediaWiki-Textformat <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> and/or <ref>http://moinmo.in/</ref>
+
+==== Character formatting ====
+Creole formating
+* **bold**
+* //italic//
+* **//bold and italic//**
+* //**italic and bold**//
+* **bold** or //italic//
+* //italic// or **bold**
+* //** not italic and not bold //**
+* **// not bold and not italic **//
+MediaWiki formating
+* ''italic''
+* '''bold'''
+* '''''bold & italic''''' 
+
+==== Numbered list ====
+# a
+# b
+#* c
+#* d [http://www.lala.org]
+# e
+## g
+## h
+==== Bullet list ====
+* a
+* b
+*# c
+*# d
+* e
+** g
+** h
+==== Definition list ====
+; a
+: b
+: c
+:: d 
+
+==== Mixed list ====
+see [[#Bullet list]] & [[#Numbered list]]
+
+=== Preformatted text ==
+==== single line code ====
+ code#
+
+==== multi line code ====
+ code# pwd
+ /
+==== HTML tag: &lt;pre&gt; =====
+{<pre>
+pre-
+formatet
+text</pre>}
+
+==== Links ====
+*local link [[#Syntax]]
+*internal link to [[other]] wiki page <ref>http://www.mediawiki.org/wiki/Help:Links#Internal_links</ref>
+*piped link with different text [[papierformat|a3]] <ref>http://www.mediawiki.org/wiki/Help:Links#Interwiki_links</ref>
+*external link to other websites http://www.heise.de <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*external link with different text [http://www.heise.de heise online] <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*external link numbered [http://www.kernel.org] <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+*HTML link <a href="http://www.heise.de">go to heise.de</a>
+
+==== Tables ====
+* Creole table <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Tables</ref>
+|=Heading Col 1 |=Heading Col 2         |
+|Cell 1.1       |Two lines\\in Cell 1.2 |
+|Cell 2.1       |Cell 2.2               |
+
+* MediaWiki tables <ref>http://www.mediawiki.org/wiki/Help:Tables</ref>
+{|
+! head1  !! head2     !! head3
+|-
+| Orange || Apple     || 12,333.00
+|-
+| Bread  || Pie       || 500.00
+|-
+| Butter || Ice cream || 1.00
+|}
+
+* another example
+{| border="1"
+|Orange
+|Apple
+|align="right" | 12,333.00
+|-
+|Bread
+|Pie
+|align="right" | 500.00
+|- style="font-style:italic; color:green;"
+|Butter
+|Ice cream
+|align="right" | 1.00
+|}
+
+===== cell alignment detection =====
+|= Heading Col 1 |= Heading Col 2 |= Heading Col 3 |
+|           right|  center        |left            | 
+| 1,234.56       |  -             | 1.2.3          |
+|      not right | not center     | left ?         |
+
+=== TODOs ===
+Multible and/or grouped cites<ref>http://www.mediawiki.org/wiki/Extension:Cite/Cite.php#Usage</ref> with <code>&lt;ref&gt;</code> aren't supported.
+
+== Sample Pages ==
+* [[linux_compare]]
+* [[other]]
+* [[not existing page]]
+
+== Links ==
+* WikiWiki http://c2.com/cgi/wiki
+** WikiWiki markup http://c2.com/cgi/wiki?TextFormattingRules
+** Sandbox http://c2.com/cgi/wiki?WikiWikiSandbox
+* [http://de.wikipedia.org/wiki/Creole_(Markup) Creole]
+** Creole markup http://www.wikicreole.org/wiki/Creole1.0
+* [http://de.wikipedia.org/wiki/MediaWiki MediaWiki]

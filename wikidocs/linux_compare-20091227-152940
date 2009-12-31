@@ -29,7 +29,7 @@ Importent Packages
  |-
  | Fedora || 12      || 2.6.31.5 || 2.11  || 4.4.2 || 2.19.51.0.14
  |-
- | Mandrake -&gt; [http://www.mandriva.com/ mandriva]|| 9.0     || 2.6.19 || 2.2.5 ||
+ | Mandrake -> [http://www.mandriva.com/ Mandriva]|| 9.0     || 2.6.19 || 2.2.5 ||
  |-
  | [http://www.redhat.com/ RedHat] || 7       || 2.2.16 || 2.1.92 || 2.96
  |-
@@ -78,11 +78,3 @@ Importent Packages
 
 == Links ==
 http://en.wikipedia.org/wiki/Comparison_of_Linux_distributions
-
-== About ==
-See [[wiki]] for more information
-
-== Document history ==
-* [[linux_compare-20091225-132600]]
-* [[linux_compare-20091226-094400]]
-* [[linux_compare-20091226-120000]]

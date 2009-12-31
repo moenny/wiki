@@ -1,0 +1,33 @@
+#AuthUserFile /srv/max/nfshome/project/www/wiki/.htpasswd
+#AuthName "Wiki write access"
+#uthType Basic
+#<Limit GET>
+#require valid-user
+#</Limit>
+
+RewriteEngine   On
+#RewriteOptions  Inherit
+
+RewriteRule  ^$ wiki.cgi 
+
+
+#RewriteRule    wiki\.(cgi|css)(.*)$  - [L]
+
+#RewriteRule    [^\/]+/wiki.css     wiki.css  [L]
+#RewriteRule    ^(.*)$  wiki.cgi/$1
+#[L]
+#[T=application/x-httpd-cgi]
+
+
+
+
+#RewriteEngine   On
+#RewriteMap      cgiauth                                 prg:/srv/max/nfshome/project/www/wiki/CGIAuth.pl
+
+#RewriteCond     %{HTTP:Authorization}                   ^Basic                                  [NC]
+#RewriteCond     ${cgiauth:%{HTTP:Authorization}}        ^BASIC:([^:]+):(.*)                     [NC]
+#RewriteRule     ^(.*)                                   -                                       [E=PHP_AUTH_USER:%1,E=PHP_AUTH_PW:%2,L]
+
+#RewriteCond     %{HTTP:Authorization}                   ^Digest                                 [NC]
+#RewriteCond     ${cgiauth:%{HTTP:Authorization}}        ^DIGEST:(.*)                            [NC]
+#RewriteRule     ^(.*)                                   -                    
