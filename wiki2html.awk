@@ -22,11 +22,27 @@ BEGIN {
     OPT["DRAFT_VIEW"]  = 1;
    
     OPT["INDENT"] = 4;
+#    OPT["ICON"]   = "/project.new/validator/html.cgi?" rand();
 
     # 1: for edit 
     # 2: for edit & view source
     # 3: for edit & view source & view draft 
     OPT["LOGIN"] = 0;
+
+    if (ENVIRON["SERVER_NAME"] == "dual.c-w-m.loc")
+        OPT["HTML_CHECK"] = "<a href='/dyna/validator-0.8.5/htdocs/check?uri=referer' class='etool'>valid HTML:<img src='/project.new/validator/html.cgi' alt='' style='border:0px'></a>" \
+     " <a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
+    else
+        OPT["HTML_CHECK"] = "<a href='http://validator.w3.org/check?uri=referer' class='etool'>validate HTML</a>" \
+     " <a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
+ 
+
+#    OPT["HTML_CHECK"] = "<a href='/dyna/validator-0.8.5/htdocs/check?uri=referer' class='etool'>validate HTML</a>" \
+ #    " <a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
+
+    REGEX_HTML["INLINE"] = "^(a|b|code|em|i|strong|tt)$";
+    REGEX_HTML["LIST"]   = "^(dl|ol|ul)$";
+    REGEX_HTML["ITEM"]   = "^(li|dd|dt)$";
 
     UPTIME = uptime();
     
@@ -34,6 +50,7 @@ BEGIN {
     CREOLE_TABLE = 0;
     
     TAG[0] = 0;      # HTML tag stack
+    TAG_IDENT[0] = 0;
     IN_TAG[0] = 0;   # HTML tag counter
     HTML_ID[0] = 0;
     
@@ -41,8 +58,6 @@ BEGIN {
     SELF = "";
     RW = 0;
 
-    L_COUNT = 0;
-    
     REF[0] = 0;
     ELINKS[0] = 0;
     
@@ -212,6 +227,9 @@ BEGIN {
     if (OPT["CSS_SCREEN"])
 	html_tag("link", sprintf("rel='stylesheet' media='screen' type='text/css' href='%s'", OPT["CSS_SCREEN"]));
 
+    if (OPT["ICON"])
+	html_tag("link", "rel='icon' type='image/png' href='" OPT["ICON"] "'");
+
 #    html_close("head");
     html_tag("body");
     if (errstr) {
@@ -332,8 +350,10 @@ END {
 	html_tag("ol"); # ul
 	for (i = 1; i <= REF[0]; i ++) {
 	    html_tag("li");
-	    printf "<a href='#ref_%d' name='_ref_%d' class='ref'>&uarr;</a> " \
-		, i, i;
+	    html_tag("a" \
+		, sprintf("href='#ref_%d' name='_ref_%d' class='ref'", i, i) \
+		, "&uarr;" \
+		);
 	    text2html(REF[i]);
 	    html_close("li");
 	}
@@ -350,7 +370,7 @@ END {
 		|| CGI["mode"] == "diff-edit" \
 		)) {
 	    if (CGI["mode"] == "edit") CGI["txt"] = RAW;
-	    printf "<a name='edit'></a>";
+	    html_tag("a", "name='edit'", " ");
 	    printf "\n<form method='POST' action='%s%s'>" \
 		    , ENVIRON["SCRIPT_NAME"] \
 		    , ENVIRON["PATH_INFO"] \
@@ -370,39 +390,36 @@ END {
 	    printf "</div>\n";
 	    printf "</form>";
 	} else {
-	    printf ("<div style='width:100%;' class='tool'>");
-	    printf "<a href='%s?mode=' class='tool'>toc</a>\n", SELF;
-
-	    printf "<a href='?mode=' class='tool'>reload</a>\n";
-	    
+	    html_tag("div", "style='width:100%' class='tool'");
+	    html_tag("a", "href='" SELF "?mode=' class='tool'", "toc");
+	    html_tag("a", "href='?mode=' class='tool'", "reload");
 	    if (SRC_FILE && (OPT["LOGIN"] <= 2 || ENVIRON["REMOTE_USER"]))
-	        printf "<a href='?mode=source' class='tool'>source</a>\n";
+	        html_tag("a", "href='?mode=source' class='tool'", "source");
 	    
 	    if (DST_FILE && OPT["DRAFT_VIEW"]) {
-	        printf "<a href='?mode=draft' class='tool'>draft</a>\n";
+	        html_tag("a", "href='?mode=draft' class='tool'", "draft");
 		if (SRC_FILE) 
-		    printf "<a href='?mode=diff-draft' class='tool'>diff-draft</a>\n";
+	            html_tag("a", "href='?mode=diff-draft' class='tool'", "diff-draft");
 		if (RW) 
-		    printf "<a href='?mode=edit-draft' class='tool'>edit-draft</a>\n";
+		    html_tag("a", "href='?mode=edit-draft' class='tool'", "edit-draft");
 	    } else if (RW)
-		printf "<a href='?mode=edit#edit' class='tool'>edit</a>\n";
+	        html_tag("a", "href='?mode=edit#edit' class='tool'", "edit");
 
 	    if (OPT["LOGIN"]) {
 		if (ENVIRON["REMOTE_USER"])
 		    printf "User: %s\n", ENVIRON["REMOTE_USER"];
 		else
-		    printf "<a href='?mode=login' class='tool'>login</a>\n";
+		    html_tag("a", "href='?mode=login' class='tool'", "login");
 	    }
-	    
-	    print "<a href='http://validator.w3.org/check?uri=referer' class='etool'>validate HTML</a>";
-	    print "<a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
-	    printf "</div>\n";
+	    if (OPT["HTML_CHECK"]) print OPT["HTML_CHECK"];
+	    html_close("div");
 	}
 	if (UPTIME) {
-	    printf("<hr><div><i>%s (-%.2fs)</i></div>" \
-	       , strftime("%A %F %T %Z")\
+	    html_tag("hr");
+	    html_tag("div", "", sprintf("<i>%s (-%.2fs)</i>" \
+	       , strftime("%A %F %T %Z") \
 	       , uptime() - UPTIME \
-	       );
+	       ));
 	}
     }
     
@@ -443,51 +460,53 @@ function decode(str,  i) {
 function html_debug(str) {
     if (CGI["debug"]) printf "<!-- %s -->", str;
 }
+function html_warn(str) {
+    printf "<span class='error'>%s line %s: %s</span><br>", FILENAME, FNR, str;
+}
 function html_close(tag, i, t) {
-    if (TAG[0] <= 0) {
-	printf "<span class='error'>no more html tags to close</span><br>"; 
-	return;
-    }
+    if (TAG[0] <= 0) return html_warn("no more html tags to close");
 
     t = TAG[0];
     if (tag) 
 	while (t > 0 && TAG[t] != tag) {
-	    if (t != TAG[0]) 
-		printf "<span class='error'>&lt;%s&gt; not open</span><br>", TAG[t];
+	    if (t != TAG[0]) html_warn("tag " TAG[t] " not open");
 	    t --;
 	}
 
     # close after newline ?
-    if (TAG[TAG[0]] !~ /^(a|dd|dt|h[1-9]|li|p|pre|title)$/) {
-	printf "%s", html_debug("closing tag");
-	#if (TAG[TAG[0]] != "p") 
+    if (TAG_IDENT[TAG[0]]) {
+	html_debug("closing tag");
 	printf "\n";
         i = (TAG[0]-1) * OPT["INDENT"];
         while (i -- > 0) printf " ";
     }
    
     while (TAG[0] >= t) {
-	if (TAG[0] > t)
-	    printf "<span class='error'>closing tag %s to close %s</span><br>" \
-		, TAG[TAG[0]], tag;
+	if (TAG[0] > t) html_warn("closing tag " TAG[TAG[0]] " to close " tag);
 	printf "</%s>", TAG[TAG[0]--];
     }
 }
-function html_tag(tag,attr,html,  i) {
+function html_tag(tag,attr,html,  i,br) {
+
+
     if (TAG[0] > 0) {
 #    printf "\n<!-- new tag %s statck: ", tag;
  #   for (i = 1; i <= TAG[0]; i ++)
 #	printf " %s", TAG[i];
  #   printf "-->";
 	# .. keep <pre> & <table> in lists
-#	if (tag !~ /^(dl|dt|dd|ol|ul|li)$/) 
-	if (tag !~ /^(dl|dt|dd|ol|ul|li|pre|table|tt|)$/) {
-	    if (TAG[TAG[0]] ~ /^(li|dt|dd)$/) 
+	if (tag !~ /^(pre|table|)$/ && \
+	    tag !~ REGEX_HTML["INLINE"] && \
+	    tag !~ REGEX_HTML["LIST"] && \
+	    tag !~ REGEX_HTML["ITEM"] ) {
+	    # list item still open ?
+	    if (TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) html_close();
+	    # list still open ?
+	    while (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["LIST"]) {
 		html_close();
-	    while (TAG[0] > 0 && TAG[TAG[0]] ~ /^(dl|ol|ul)$/) {
-		html_close(); # close list
-		L_COUNT --;
-		if (L_COUNT) html_close(); # close item in nested list
+		# close parent item in nested list
+		if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"])
+		    html_close(); 
 	    }
 	}
  
@@ -511,42 +530,41 @@ function html_tag(tag,attr,html,  i) {
 	    if (TAG[TAG[0]] != "tr")
 		html_tag("tr");
 	} else if (tag ~ /^(|-|h[1-6]|hr|p)$/) {
-	    if (TAG[TAG[0]] == tag) {
-		printf "%s\n", html_debug("next line from same tag"); 
+	    if (TAG[TAG[0]] == tag) { # keep tag open
+		html_debug("next line from same tag"); 
 		return 0;
-	    } else if (TAG[TAG[0]] ~ /^(hr|h[1-6]|p|pre|table|li|dt|dd)$/) 
+	    } else if (TAG[TAG[0]] ~ /^(hr|h[1-6]|p|pre|table)$/ ||\
+		       TAG[TAG[0]] ~ REGEX_HTML["ITEM"])
 		html_close();
 	# no recursive tags
 	#} else if (tag ~ /^(|-|h[1-6]|hr|p|pre|table)$/) {
 	} else if (tag ~ /^(pre|table)$/) {
-	    if (TAG[TAG[0]] == tag) {
-		printf "%s\n", html_debug("next line from same tag"); 
+	    if (TAG[TAG[0]] == tag) { # keep tag open
+		html_debug("next line from same tag"); 
 		return 0;
 	    # tags welche sich gegenseitig ausschliessen
 	    } else if (TAG[TAG[0]] ~ /^(hr|h[1-6]|p|pre|table)$/) 
 		html_close();
 	# lists
-	} else if (tag ~ /^(dl|ol|ul)$/) {
+	} else if (tag ~ REGEX_HTML["LIST"]) {
 	    if (TAG[TAG[0]] ~ /^(p|pre|table|tr)$/) 
 		html_close();
 	# list items
-	} else if (tag ~ /^(dd|dt|li)$/) {
-	    if (TAG[TAG[0]] ~ /^(p|pre|table|tr|dd|dt|li)$/) 
+	} else if (tag ~ REGEX_HTML["ITEM"]) {
+	    if (TAG[TAG[0]] ~ /^(p|pre|table|tr)$/ ||\
+		TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) 
 		html_close();
-#	    if (TAG[0] <= 0 || TAG[TAG[0]] !~ /!/)
         }
-	
     }
     if (tag == "" || tag == "-") return 0;
 
-  #  printf "\n<!-- + tag stack:";
- #   for (i = 1; i <= TAG[0]; i ++)
-#	printf " %s", TAG[i];
- #   printf "-->";
-   
-    printf "%s\n", html_debug("new tag");
-    i = TAG[0] * OPT["INDENT"];
-    while (i -- > 0) printf " ";
+    html_debug("new tag");
+
+    if (br = (tag ~ REGEX_HTML["INLINE"]) ? "" : "\n") {
+	printf br;
+	i = TAG[0] * OPT["INDENT"];
+	while (i -- > 0) printf " ";
+    }
 
     IN_TAG[tag] ++;
     if (attr = trim(attr)) 
@@ -554,11 +572,16 @@ function html_tag(tag,attr,html,  i) {
     else if (tag == "tr")
 	attr = " class='" ((IN_TAG[tag] % 2) ? "even" : "odd") "'";
 
-    if (tag !~ /^(br|hr|link|meta)$/) TAG[++TAG[0]] = tag;
-    printf "<%s%s>%s", tag, attr, html;
-    if (html && TAG[TAG[0]] == tag) {
-	printf "</%s>\n", TAG[TAG[0]--];
+    if (TAG[0] && br) TAG_IDENT[TAG[0]] ++;
+    if (tag !~ /^(br|hr|img|link|meta)$/) {
+	TAG[++TAG[0]] = tag;
+	TAG_IDENT[TAG[0]] = 0;
     }
+    
+    printf "<%s%s>%s", tag, attr, html;
+    
+    if (html && TAG[TAG[0]] == tag)
+	printf "</%s>" , TAG[TAG[0]--];
 #    printf "<!-- tag %s open-->", tag;
     return 1;
 }
@@ -748,8 +771,6 @@ function mw_img(location, opts,  ary, a, title, attr, link, ary2) {
 }
 function text2html(str,  ary, left, start, e) {
 
-#    gsub(/\r/, "", str); FIXME: needed?
-
     # Creole Nowiki (Preformatted) Inline 
     if (left = index(str, "{{{")) {
 	if (e = rindex(substr(str, left), "}}}")) {
@@ -768,12 +789,12 @@ function text2html(str,  ary, left, start, e) {
 	str = substr(str, RSTART + RLENGTH);
 	text2html(left);
 	if (match(str, /<\/nowiki[^>]*>/)) {
-	    left = substr(str, 1, RSTART + RLENGTH - 1);
+	    left = substr(str, 1, RSTART -1);
 	    str = substr(str, RSTART + RLENGTH);
 	    html_tag("tt", "", raw2html(left));
 	    text2html(str);
-	} else # FIXME: !
-	    html_tag("tt", "", raw2html(str));
+	} #else # FIXME: !
+#	    html_tag("tt", "", raw2html(str));
 	return 
     }
 
@@ -850,20 +871,20 @@ function trim(str,f) {
     if (f) gsub(/(^_+|_+$)/, "", str);
     return str;
 }
-function html_attr_id(str,  i,add) {
+function unique_name(str,  i,add) {
     str = trim(str,2);
     add = "";
     while (1) {
 	i = HTML_ID[0];
 	while (i > 0 && HTML_ID[i] != str add) i --;
-	if (!i) return "id='" (HTML_ID[++HTML_ID[0]] = str add) "'";
+	if (!i) return (HTML_ID[++HTML_ID[0]] = str add);
 	add += 1;
     }
 }
 
 // {
     RAW = RAW $0 "\n";
-    if (CGI["debug"]) printf "\n<!-- %s -->", $0;
+    if (CGI["debug"]) printf "<!-- %s:%d\n%s\n-->", FILENAME, FNR, $0;
     if (CGI["mode"] == "source") {
 	if (TAG[0] == 0 || TAG[TAG[0]] != "pre") 
 	    html_tag("pre"); #, "class='CSS Text'");
@@ -908,9 +929,7 @@ CREOLE_TABLE {
 match($0, /^(=+)([^=]+)(=+)/, ary) {
     h = length(ary[length(ary[1]) >= length(ary[3]) ? 1 : 3]);
     text = substr(ary[1], h +1) ary[2] substr(ary[3], h +1);
-    html_tag("h" h, html_attr_id(text), raw2html(text,1));
-#    text2html(text);
-#    html_close("h" h);
+    html_tag("h" h, "", sprintf("<a name='%s' href='#%s' class='head'>%s</a>",n = unique_name(text), n, raw2html(text,1)));
     next;
 }
 # MediaWiki table
@@ -958,76 +977,69 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
 # unordered-, ordered- and definition list
 (/^([#;:\*]+)/ && match(formating($0), /^([#;:\*]+)/)) {
 
-#    if (i = 1; i <= RLENGTH; i ++)
-#	if (substr($0, i, 1) == "*")
-#	    dst_lists[i] = "ul";
-#	else if (substr($0, i, 1) == "#")
-#	    dst_lists[i] = "ol";
-#	else
-#	    dst_lists[i] = "dl";
-
-    list = substr($0,RSTART + RLENGTH-1,1);
-   
-    if (list == "*") {
-	list = "ul"; # falls verschachtelt dann in <li></li>
-	item = "li";
-    } else if (list == "#")  {
-	list = "ol"; # falls verschachtelt dann in <li></li>
-	item = "li";
-    } else if (list == ";") {
-	list = "dl"; # falls verschachtelt dann in <dd></dd>
-	item = "dt";
-    } else if (list == ":") {
-	list = "dl"; # falls verschachtelt dann in <dd></dd>
-	item = "dd";
-    }
+    lists = substr($0, 1 ,RLENGTH);
     $0 = substr($0, RSTART + RLENGTH);
-    c = RLENGTH;
 
-    # close the last list item
-    if (TAG[0] > 0 && TAG[TAG[0]] ~ /^(li|dd|dt)$/) html_close();
+    CHAR2LIST["*"] = "ul"; CHAR2ITEM["*"] = "li";
+    CHAR2LIST["#"] = "ol"; CHAR2ITEM["#"] = "li";
+    CHAR2LIST[";"] = "dl"; CHAR2ITEM[";"] = "dt";
+    CHAR2LIST[":"] = "dl"; CHAR2ITEM[":"] = "dd";
 
-  if (1) {
-    while (L_COUNT > c) {
-	L_COUNT --;
+    last_level = 0;
+   
+    skip_levels = 0; 
+    for (i = 1; i <= TAG[0]; i ++)
+	if (TAG[i] ~ REGEX_HTML["LIST"])  {
+	    last_level ++;
+	    if (skip_levels == last_level -1 \
+		&& last_level <= length(lists)  \
+		&& TAG[i] == CHAR2LIST[substr(lists, last_level,1)] \
+		) skip_levels ++;
+	}
+
+    html_debug(sprintf("list levels %d of %d start %d" \
+	, length(lists), last_level, skip_levels));
+
+    for (i = skip_levels +1; i<= last_level; i++) {
+	html_debug("close parent list");
+	# close nested list item
+	if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) html_close();
 	html_close(); # close list
-	if (L_COUNT) html_close(); # close item
     }
-    for (i = 1 + L_COUNT; i <= c; i++) {
-	if (L_COUNT) 
-	    html_tag((TAG[TAG[0]] == "dl") ? "dd" : "li"); # nested list
-	html_tag(list);
-	L_COUNT ++;
+   
+    if (skip_levels < last_level) {
+	# close parent list item
+        if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) {
+	    html_debug("close parent list item");
+	    html_close();
+	}
     }
-  } else {
     
-#    printf "<!-- open do list prepare -->";
-    for (i = 1 + L_COUNT; i <= c; i++) {
-	if (L_COUNT) html_tag((item == "li") ? "li" : "dd"); # nested list
-	html_tag(list);
-	L_COUNT ++;
+    # open child list
+    for (i = 1 + skip_levels; i <= length(lists); i++) {
+	if (i - skip_levels > 1) {
+	    html_debug("item for child list");
+	    html_tag((TAG[TAG[0]] == "dl") ? "dd" : "li"); # nested list
+	}
+	if (TAG[TAG[0]] == "dt") {
+	    html_close();
+	    html_tag("dd");
+	}
+	html_debug(sprintf("new list in level %d", i));
+	html_tag(CHAR2LIST[substr(lists, i, 1)]);
     }
-#   printf "<!-- closing -->";
-    while (L_COUNT > c) {
-	L_COUNT --;
-	html_close(); # close list
-	if (L_COUNT) html_close(); # close item
-    }
-  }
-#    printf "<!-- open %s -->", item;
-    html_tag(item);
+    # open current list item
+    html_tag(CHAR2ITEM[substr(lists, length(lists),1)]);
     text2html($0);
-#    html_close(item);
     next;
 }
-
-/^ / && ($0 !~ /^[[:space:]]+</) {
+/^ / {
 #       printf "<!-- last TAG(%d)='%s'-->", TAG[0],TAG[TAG[0]];
-    html_tag("pre");
-    text2html(substr($0, 2));
-    next;
+   if (TAG[0] == 0 || TAG[TAG[0]] != "pre") html_tag("pre");
+   text2html(substr($0, 2));
+   printf "\n";
+   next;
 }
-
 # Creole nowiki preformatted 
 /^{{{/ {
     if (! rindex($0, "}}}")) {
@@ -1041,43 +1053,46 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
 	next;
     }
 }
-
 /^----/ {
     html_tag("hr");
     $0 = substr($0, 5);
 }
 /[^[:space:]]/ {
-    if (match($0, /<(code|nowiki|pre)[^>]*>/,ary)) {
+    if (match($0, /<(code|nowiki|pre)([^>]*)>/,ary)) {
 	tag = tolower(ary[1]);
+	tag_attr = ary[2];
 	# text before tag
 	text = substr($0, 1, RSTART  -1);
-	html = substr($0, RSTART, (tag != "nowiki") ? RLENGTH : 0);
 	$0 = substr($0, RSTART + RLENGTH);
 
 	if (trim(text)) {
             html_tag("p");
 	    text2html(text);
-	    printf "%s\n", html_debug("text before html");
-	}
-	html_tag((tag == "pre") ? "" : "p");
-	if (tag == "nowiki") html_tag("tt");
+	    html_debug("text before html");
+	} else if (tag != "pre") 
+	    html_tag("p");
+	
+	if (tag == "nowiki") 
+	    html_tag(tag = "tt");
+	else
+	    html_tag(tag, tag_attr);
 
-	printf "%s", html;
 	while(! match(tolower($0), "</" tag "[[:space:]]*>")) {
-	    printf "%s%s\n", raw2html($0, 1), html_debug("html line");
+	    html_debug("html line");
+	    printf "%s\n", raw2html($0, 1);
 	    if (getline <= 0) {
-		printf "<span class='error'>error: missig /" tag " at " NR "</span><br>";
+		html_warn("missing closing tag " tag);
 		break;
 	    }
 	    RAW = RAW $0 "\n";
 	}
+
 	if (RSTART) {
 	    text = substr($0, RSTART + RLENGTH);
-	    html = substr($0, RSTART, (tag != "nowiki") ? RLENGTH : 0);
 	    $0 = substr($0, 1, RSTART -1);
-	    printf "%s%s", raw2html($0, 1), html_debug("last html line");
-	    if (tag == "nowiki") html_close("tt");
-	    printf "%s", html;
+	    printf "%s", raw2html($0, 1);
+	    html_debug("last html line");
+	    html_close(tag);
 	    if (trim(text)) {
 		html_tag("p");
 		text2html(text);
@@ -1086,7 +1101,7 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
     } else {
         html_tag("p");
 	text2html($0);
-#	printf "%s\n", html_debug("text end");
+	html_debug("text end");
     }
     next;
 }

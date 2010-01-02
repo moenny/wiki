@@ -41,6 +41,10 @@ a.tool, input.tool {
     border-bottom: 3px solid #666;
     border-right:  1px solid #666;
 }
+
+a.head {
+    color: #004;
+}
 a.tool:hover, input.tool:hover {
     background-color: #088;
     border-top:    2px solid #0aa;
@@ -48,12 +52,10 @@ a.tool:hover, input.tool:hover {
     border-bottom: 2px solid #066;
     border-right:  1px solid #066;
 }
-
 a.tool:hover,input.ref:hover { 
     color:#002;
-
     text-decoration:underline; 
-    }
+}
 a {
     text-decoration:none; 
 }
