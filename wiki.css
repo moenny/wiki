@@ -1,4 +1,4 @@
-body { background-color: #eee ; color: #222 ; }
+body { background-color: #eee ; color: #222 ; font-family: sans-serif; }
 th { background-color: #ddd; }
 tr.even { background-color: #e8e8e8; }
 tr.odd  { background-color: #f0f0f0; }
@@ -71,6 +71,21 @@ h1, h2, h3 {
     border-bottom: 1px dotted #ddd;
 }
 
+pre {
+    border: 1px dotted #000;
+    background-color: #ccc;
+    color: #000;
+    font-family: monospace, sans-serif;
+}
+.frame {
+    border: 1px solid #888;
+    background-color: #ddd;
+    padding: 3px; 
+}
+
+img {
+    border: 0px;
+}
 /*input.tool { border: none; }*/
 /* DEBUG */
 

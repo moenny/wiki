@@ -194,7 +194,9 @@ BEGIN {
 			viewfile = DST_FILE;
 			CGI["mode"] = "edit";
 		    }
-		}
+		} else if (CGI["mode"] ~ /^(draft|edit-draft)$/)
+		    CGI["mode"] = "";
+		
 		ARGV[ARGC++] = viewfile;
 	    }
 	    
@@ -488,7 +490,6 @@ function html_close(tag, i, t) {
 }
 function html_tag(tag,attr,html,  i,br) {
 
-
     if (TAG[0] > 0) {
 #    printf "\n<!-- new tag %s statck: ", tag;
  #   for (i = 1; i <= TAG[0]; i ++)
@@ -515,8 +516,8 @@ function html_tag(tag,attr,html,  i,br) {
 	} else if (tag == "tr") {
 	    if (TAG[TAG[0]] == tag)
 		return 0;
-#	    else if (TAG[TAG[0]] ~ /^(pre)$/) 
-#		html_close();
+	    else if (TAG[TAG[0]] ~ /^(pre)$/) 
+		html_close();
 	    if (TAG[0] > 0 && TAG[TAG[0]] ~ /^(td|th)$/)
 		html_close();
 
@@ -529,11 +530,18 @@ function html_tag(tag,attr,html,  i,br) {
 		html_close();
 	    if (TAG[TAG[0]] != "tr")
 		html_tag("tr");
-	} else if (tag ~ /^(|-|h[1-6]|hr|p)$/) {
+	} else if (tag == "p") {
+	    if (TAG[TAG[0]] ~ /^(p|td)$/) { # ignore <p> in <p> & <td>
+		html_debug("next line from same tag"); 
+		return 0;
+	    } else if (TAG[TAG[0]] ~ /^(pre|table)$/ ||\
+		       TAG[TAG[0]] ~ REGEX_HTML["ITEM"])
+		html_close();
+	} else if (tag ~ /^(|-|h[1-6]|hr)$/) {
 	    if (TAG[TAG[0]] == tag) { # keep tag open
 		html_debug("next line from same tag"); 
 		return 0;
-	    } else if (TAG[TAG[0]] ~ /^(hr|h[1-6]|p|pre|table)$/ ||\
+	    } else if (TAG[TAG[0]] ~ /^(p|pre|table)$/ ||\
 		       TAG[TAG[0]] ~ REGEX_HTML["ITEM"])
 		html_close();
 	# no recursive tags
@@ -602,7 +610,7 @@ function detect_align(text,  lspaces, rspaces) {
 	return "left";
     else if (lspaces > 0 && rspaces == 0) #lspaces > rspaces) 
 	return "right";
-    else if (text ~ /^[[:space:]]*[0-9]+[0-9,']*(\.[0-9]+)?([[:space:]]+.*|)$/)
+    else if (text ~ /^[[:space:]]*[0-9]+[0-9,':]*([.:][0-9]+)?([[:space:]]+.*|)$/)
 	return "right";
 
 }
@@ -734,29 +742,29 @@ function img(prefix, location, title, attr, link) {
     }
 }
 # MediaWiki image attributes
-function mw_img(location, opts,  ary, a, title, attr, link, ary2) {
+function mw_img(location, opts,  ary, a, title, attr, link, ary2, frame, css) {
     ary[0] = split(opts, ary, /\|/);
-    title = attr = link = "";
+    title = attr = frame = css = "";
+    link = "0";
     for (a = 1; a <= ary[0]; a ++) {
 	# Image format
 	if (ary[a] == "border") {
 	    attr = attr " class='bordered'";
 	} else if (ary[a] == "frame") {
-	    ; # not supported
+	    frame = " "; #padding:5px";
 	} else if (ary[a] ~ /^(thumb|frameless)$/) {
 	    attr = attr " width='80' height='80'"; # not really supported
+	    if (ary[a] == "thumb") frame = "width:80px;"; #padding:5px";
 	# 
 	} else if (match(ary[a], /^([0-9]+)x([0-9]+)px$/, ary2)) {
 	    attr = attr " width='" ary2[1] "' height='" ary2[2] "'";
 	} else if (match(ary[a], /^([0-9]+)px$/, ary2)) {
 	    attr = attr " width='" ary2[1] "'";
 	# Image alignment
-	} else if (ary[a] ~ /^(top|middle|bottom)$/) {
-	    attr = attr " align='" ary[a] "'"; 
+	} else if (ary[a] ~ /^(top|middle|bottom|text-top|text-bottom|baseline|sub|super)$/) {
+	    css = css "vertical-align:" ary[a] ";"; 
 	} else if (ary[a] ~ /^(left|right|center|none)$/) {
-	    ; # not supported
-	} else if (ary[a] ~ /^(baseline|sub|super||text-top|text-bottom)$/) {
-	    ; # not supported
+	    css = css "float:" ary[a] ";"; 
 	} else if (ary[a] ~ /^(alt=)/) {
 	    attr = attr " alt='" substr(ary[a], 1 +4) "'";
 	} else if (ary[a] ~ /^(link=)/) {
@@ -767,7 +775,13 @@ function mw_img(location, opts,  ary, a, title, attr, link, ary2) {
 	    title = ary[a];
 	}
     }
-    return img("File:", location, title, attr, link);
+    if (css) attr = attr " style='" css "'";
+    if (link == "0") link = OPT["IMG_URL"] "/" location; # TODO: handle by wiki?
+    if (frame) {
+	return  "<div class='frame' style='"frame"'>" img("File:", location, title, attr, link) "<br>" title "</div>";
+    } else {
+	return img("File:", location, title, attr, link);
+    }
 }
 function text2html(str,  ary, left, start, e) {
 
@@ -791,7 +805,7 @@ function text2html(str,  ary, left, start, e) {
 	if (match(str, /<\/nowiki[^>]*>/)) {
 	    left = substr(str, 1, RSTART -1);
 	    str = substr(str, RSTART + RLENGTH);
-	    html_tag("tt", "", raw2html(left));
+	    html_tag("tt", "", raw2html(left,1));
 	    text2html(str);
 	} #else # FIXME: !
 #	    html_tag("tt", "", raw2html(str));
@@ -810,20 +824,21 @@ function text2html(str,  ary, left, start, e) {
     }
 
     # check <ref>..</ref>
-    left = 0;
-    while (match(substr(str, left +1), /<ref[^>]*>/)) {
-	start = left + RSTART + RLENGTH;
-	left += RSTART -1;
-	if (match(substr(str, left), /<\/ref[[:space:]]*\>/)) {
-	    e = ary_index(REF, start = substr(str, start, left + RSTART -1 - start));
+    left = "";
+    while (match(str, /<ref[^>]*>/)) {
+	left = left substr(str, 1, RSTART -1);
+	str = substr(str, RSTART + RLENGTH);
+	if (match(str, /<\/ref[[:space:]]*>/)) {
+	    e = ary_index(REF, start = substr(str, 1, RSTART -1));
 	    if (REF[0] < e) REF[0] = e;
-	    REF[REF[0]] = start;
-	    str = substr(str, 1, left) \
+	    REF[e] = start;
+	    left = left \
 		sprintf("<sup>[<a href='#_ref_%d' name='ref_%d' class='ref'>%d</a>]</sup>" \
-		, REF[0], REF[0], REF[0]) \
-		substr(str, left + RSTART + RLENGTH);
+		, e, e, e);
+	    str = substr(str, RSTART + RLENGTH);
 	}
     }
+    str = left str;
 
     # Creole images
     while (match(str, /{{([^\|}]+)(\|(.*))?}}/,ary)) {
@@ -894,7 +909,7 @@ function unique_name(str,  i,add) {
 }
 ### parsing ###
 # Creole table
-! TABLE && match($0, /^\|/,ary) {
+match($0, /^\|/,ary) && (! TABLE || $0 ~ /[^\|]\|$/) {
     str = substr($0, RSTART + RLENGTH);
     if (str !~ /[[:space:]]*\|$/) str = str "|";
     if (! CREOLE_TABLE) {
@@ -964,10 +979,15 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
     while ((i = index(str, ary[1] ary[1])) > 0) {
 	text = substr(str, 1, i -1);
 	str = substr(str, i +2);
-	attr = (i = index(text, "|")) ? substr(text, 1, i -1) : "";
-	text = substr(text, i +1);
+	attr = "";
+	if ((i = index(text, "|")) && substr(text, 1, i-1) !~ /[\[<{]/) {
+	    attr = substr(text, 1, i -1);
+	    text = substr(text, i +1);
+	}
 
-	if (! attr && (attr = detect_align(text))) attr = "align='" attr "'";
+	if (! attr && \
+	    substr(str, 1, length(str) -2 ) ~ /([ \|!])$/ && \
+	    (attr = detect_align(text))) attr = "align='" attr "'";
 	
 	html_tag(tag, attr);
 	text2html(text);
@@ -1033,6 +1053,7 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
     text2html($0);
     next;
 }
+# MediaWiki preformated line (but wiki interpreted)
 /^ / {
 #       printf "<!-- last TAG(%d)='%s'-->", TAG[0],TAG[TAG[0]];
    if (TAG[0] == 0 || TAG[TAG[0]] != "pre") html_tag("pre");
@@ -1073,7 +1094,7 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
 	    html_tag("p");
 	
 	if (tag == "nowiki") 
-	    html_tag(tag = "tt");
+	    html_tag("tt");
 	else
 	    html_tag(tag, tag_attr);
 
@@ -1092,7 +1113,7 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
 	    $0 = substr($0, 1, RSTART -1);
 	    printf "%s", raw2html($0, 1);
 	    html_debug("last html line");
-	    html_close(tag);
+	    html_close((tag == "nowiki") ? "tt" : tag);
 	    if (trim(text)) {
 		html_tag("p");
 		text2html(text);
