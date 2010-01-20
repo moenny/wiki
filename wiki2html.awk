@@ -20,6 +20,8 @@ BEGIN {
     OPT["CSS_SCREEN"]  = "../wiki.css";
     OPT["DOC_DIR"]     = "wikidocs";
     OPT["DRAFT_VIEW"]  = 1;
+
+    OPT["MAX_INTERNALLINK_LENGTH"] = 64;
    
     OPT["INDENT"] = 4;
 #    OPT["ICON"]   = "/project.new/validator/html.cgi?" rand();
@@ -102,11 +104,15 @@ BEGIN {
 	if (! ENVIRON["PATH_INFO"]) {
 	    printf "Location: %s/%s\n\n", SELF, OPT["DEFAULT_DOC"];
 	    exit(EXIT = 1);
-	} else if (match(ENVIRON["PATH_INFO"], /^\/([a-zA-Z0-9_-]+)$/, ary) \
-		&& 3 <= RLENGTH -1 && RLENGTH <= 32 \
-		) {
+#	} else if (match(ENVIRON["PATH_INFO"], /^\/([a-zA-Z0-9_-]+)$/, ary) \
+	} else if (substr(ENVIRON["PATH_INFO"], 1, 1) == "/" \
+	    && trim(docfile = substr(ENVIRON["PATH_INFO"], 2), 3) == docfile \
+	    && length(docfile) >= 1 \
+	    && length(docfile) <= OPT["MAX_INTERNALLINK_LENGTH"] \
+	    ) {
 	    ARGC =1;
-	    DOC = gensub(/_/, " ", "g", docfile = ary[1]);
+	    #DOC = gensub(/_/, " ", "g", docfile = ary[1]);
+	    DOC = gensub(/_/, " ", "g", docfile);
 
 	    if (CGI["mode"] == "login") {
 		#&& (! ENVIRON["AUTH_TYPE"] || ! ENVIRON["REMOTE_USER"])) {
@@ -219,7 +225,7 @@ BEGIN {
     print "<!DOCTYPE html PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>";
     html_tag("html");
     html_tag("head");
-    html_tag("title", "", raw2html(((CGI["mode"]) ? "" CGI["mode"] ":" : "") DOC,1));
+    html_tag("title", "", raw2html(((CGI["mode"]) ? "" CGI["mode"] ":" : " ") DOC,1));
 
     html_tag("meta", "http-equiv='Content-type' content='text/html;charset=UTF-8'");
 
@@ -235,7 +241,7 @@ BEGIN {
 #    html_close("head");
     html_tag("body");
     if (errstr) {
-	printf "<p class='error'>%s</p>\n", errstr;
+	html_tag("p", "class='error'", errstr);
 	exit(EXIT = 0);
     }
     if (CGI["debug"] >= 2) {
@@ -533,6 +539,7 @@ function html_tag(tag,attr,html,  i,br) {
 	} else if (tag == "p") {
 	    if (TAG[TAG[0]] ~ /^(p|td)$/) { # ignore <p> in <p> & <td>
 		html_debug("next line from same tag"); 
+		printf " ";
 		return 0;
 	    } else if (TAG[TAG[0]] ~ /^(pre|table)$/ ||\
 		       TAG[TAG[0]] ~ REGEX_HTML["ITEM"])
@@ -710,7 +717,7 @@ function a_href(link, html, class) {
         class = "local";
     } else if (link ~ /^[^\/]+$/) { # internal
         if (! html) html = link;
-        gsub(/ /, "_", link);
+	link = trim(link, 3);
 	if (f_readable(OPT["DOC_DIR"] "/" link) > 0)
 	    class = "intern";
 	else 
@@ -878,16 +885,20 @@ function trim(str,f) {
     gsub(/^[[:space:]]+/, "", str);
     gsub(/[[:space:]]+$/, "", str);
 
-    if (f >= 2) 
+    # f=2 unique (header) name
+    # f=3 internal link name
+    if (f >= 3)  
+	gsub(/[^a-zA-Z0-9_-]+/, "_", str);
+    else if (f >= 2)  
 	gsub(/[^a-zA-Z0-9_]+/, "_", str);
     else if (f)
 	gsub(/[[:space:]_]+/, "_", str);
 
     if (f) gsub(/(^_+|_+$)/, "", str);
-    return str;
+    return (f >= 3) ? substr(str, 1, OPT["MAX_INTERNALLINK_LENGTH"]): str;
 }
 function unique_name(str,  i,add) {
-    str = trim(str,2);
+    str = trim(str, 2);
     add = "";
     while (1) {
 	i = HTML_ID[0];
