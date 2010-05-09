@@ -1,6 +1,6 @@
 #! /usr/bin/gawk -f
 #
-# Copyright (c) 2009 Christian W. Moenneckes
+# Copyright (c) 2009 - 2010 Christian W. Moenneckes
 #
 # vim:sts=4:ts=8
 
@@ -20,6 +20,11 @@ BEGIN {
     OPT["CSS_SCREEN"]  = "../wiki.css";
     OPT["DOC_DIR"]     = "wikidocs";
     OPT["DRAFT_VIEW"]  = 1;
+
+    OPT["UPLOAD_DIR"] = "uploads";
+    OPT["UPLOAD_URL"] = "uploads";
+
+    OPT["EXTERNAL_IMG"] = 1;
 
     OPT["MAX_INTERNALLINK_LENGTH"] = 64;
    
@@ -74,19 +79,66 @@ BEGIN {
     CGI["debug"] = 0;
 
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/) {
-	
-	if (OPT["DOC_DIR"] !~ /^\// \
-	    && match(ENVIRON["SCRIPT_FILENAME"], /^(.*\/)([^\/]+)$/, ary))
-	    OPT["DOC_DIR"] = ary[1] OPT["DOC_DIR"];
-	
-	if (OPT["IMG_DIR"] !~ /^\// \
-	    && match(ENVIRON["SCRIPT_FILENAME"], /^(.*\/)([^\/]+)$/, ary))
-	    OPT["IMG_DIR"] = ary[1] OPT["IMG_DIR"];
+
+	OPT["DOC_DIR"] = abs_path(OPT["DOC_DIR"]);
+	OPT["IMG_DIR"] = abs_path(OPT["IMG_DIR"]);
+	OPT["UPLOAD_DIR"] = abs_path(OPT["UPLOAD_DIR"]);
 	
 	SELF = "http://" ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"];
 	if (ENVIRON["REQUEST_METHOD"] == "POST") {
-	    getline query < ("/dev/stdin");
-	    close("/dev/stdin");
+	    query= "";
+	    if (ENVIRON["CONTENT_TYPE"] ~ /^multipart\/form-data/) {
+		getline boundary;
+		gsub(/\r/, "", boundary);
+		while (line != boundary "--\r") {
+		    var = "";
+		    while (getline line && line != "\r") {
+			gsub(/\r/, "", line);
+#			printf "GET a head: %s\n", line >> "/dev/stderr";
+			if (match(line, /^Content-Disposition:.*\<name=["']([^"']+)["']/, ary)) {
+			    printf "^ VAR :%s\n", ary[1];
+			    var = ary[1];
+			}
+		    }
+		    while (getline line && \
+			   line != boundary "\r" && \
+			   line != boundary "--\r") {
+#			printf "GET a data for '%s'\n", var >> "/dev/stderr";
+			if (var) CGI[var] = CGI[var] line "\n";
+		    }
+		    if (var) sub(/\r\n$/, "", CGI[var]);
+		}
+		if (line != boundary "--\r")
+		    errstr = sprintf("upload error '%s'", boundary);
+		else {
+		    if (CGI["file"] && CGI["file"] !~ /\// && \
+			CGI["upload"] && OPT["UPLOAD_DIR"] \
+			) {
+			if (f_readable(OPT["UPLOAD_DIR"] "/" CGI["file"])>=0) {
+			    errstr = sprintf("sorry, file %s already exists" \
+				, CGI["file"] \
+				);
+			} else {
+			    printf "%s", CGI["upload"] \
+			       > OPT["UPLOAD_DIR"] "/" CGI["file"];
+
+			    if (0) 
+			    errstr = sprintf("%d  bytes in %s written" \
+				, length(CGI["upload"]) \
+				, CGI["file"] \
+				);
+			}
+		    } else {
+		        errstr = sprintf("uploaded %d %d %d bytes" \
+			    , length(CGI["pre"]) \
+			    , length(CGI["upload"]) \
+			    , length(CGI["post"]) \
+			    );
+		    }
+		}
+	    } else {
+	        getline query; # < ("/dev/stdin");
+	    }
 	} else if (ENVIRON["REQUEST_METHOD"] == "GET") {
 	    query = ENVIRON["QUERY_STRING"];
 	} else {
@@ -452,7 +504,12 @@ function f_readable (file, c) {
     c = getline < (file);
     close(file);
     return c;
-}           
+}
+function abs_path (file, ary) {
+    return (file !~ /^\// \
+	&& match(ENVIRON["SCRIPT_FILENAME"], /^(.*\/)([^\/]+)$/, ary)) \
+	? ary[1] file : file;
+}
 #
 function decode(str,  i) {
     i = 1;
@@ -728,25 +785,51 @@ function a_href(link, html, class) {
     }
     return sprintf("<a href='%s' class='%s'>%s</a>", link, class, html);
 }
-function img(prefix, location, title, attr, link) {
+function img_url(location) {
+    if (OPT["UPLOAD_DIR"] && f_readable(OPT["UPLOAD_DIR"] "/" location) > 0)
+	return "../" OPT["UPLOAD_URL"] "/" location;
+    else if (OPT["IMG_DIR"] && f_readable(OPT["IMG_DIR"] "/" location) > 0)
+	return OPT["IMG_URL"] "/" location;
+    else
+	return "";
+}
+function img(prefix, location, title, attr, link,  img_url) {
     if (attr ~ /^[^[[:space:]]/) attr = " " attr;
     if (attr !~ /alt=/) attr = attr " alt='" title "'";
     if (title) title = " title='" title "'";
-    if (location ~ /^(.+:\/\/) && ! prefix/) { # FIXME: Creole external image ?
-	return sprintf("<a href='%s' class='extern'%s>%s</a>" \
+    if (location ~ /^(.+:\/\/)/) {
+	if (! prefix && OPT["EXTERNAL_IMG"]) { # Creole external image
+	    return sprintf("<img src='%s'%s>", location,  attr title);
+	} else {
+	    return sprintf("<a href='%s' class='extern'%s>%s</a>" \
 		    , (link) ? link : location, title, location);
-    } else if (index("/" location "/", "/../") \
-	    || f_readable(OPT["IMG_DIR"] "/" location) <0) {
-	return sprintf("<a href='%s' class='intern_missing'%s>%s%s</a>" \
-		    , ((link) ? link : OPT["IMG_URL"] "/" location) \
-		    , title, prefix, location);
-    } else if (link) {
-	return a_href(link, sprintf( "<img src='%s/%s'%s>" \
-			         , OPT["IMG_URL"], location,  attr title));
-    } else {
-        return sprintf("<img src='%s/%s'%s>" \
-		, OPT["IMG_URL"], location,  attr title);
+	}
+    } else if (! index("/" location "/", "/../")) {
+	if (img_url = img_url(location)) {
+	    if (link) {
+		return a_href(link, sprintf( "<img src='%s'%s>" \
+			         , img_url,  attr title));
+	    } else {
+		return sprintf("<img src='%s'%s>", img_url,  attr title);
+	    }
+	} else if (OPT["UPLOAD_DIR"] && ! link) {
+
+	    if (CGI["upload"] == location) 
+		return sprintf("<div><form method='POST' action='%s%s' enctype='multipart/form-data'><p><input type='hidden' name='file' value='%s'><input name='upload' type='file'><input type='submit' value='upload'></p></form></div>" \
+		    , ENVIRON["SCRIPT_NAME"] \
+		    , ENVIRON["PATH_INFO"] \
+		    , location \
+		    );
+	    else
+		return sprintf("<a href='%s' class='intern_missing'%s>%s</a>" \
+		    , "?upload=" location \
+		    , title, location \
+		    );
+	}
     }
+    return sprintf("<a href='%s' class='intern_missing'%s>%s%s</a>" \
+		, ((link) ? link : OPT["UPLOAD_URL"] "/" location) \
+		, title, prefix, location);
 }
 # MediaWiki image attributes
 function mw_img(location, opts,  ary, a, title, attr, link, ary2, frame, css) {
@@ -783,7 +866,7 @@ function mw_img(location, opts,  ary, a, title, attr, link, ary2, frame, css) {
 	}
     }
     if (css) attr = attr " style='" css "'";
-    if (link == "0") link = OPT["IMG_URL"] "/" location; # TODO: handle by wiki?
+    if (link == "0") link = img_url(location); # TODO: handle by wiki?
     if (frame) {
 	return  "<div class='frame' style='"frame"'>" img("File:", location, title, attr, link) "<br>" title "</div>";
     } else {
@@ -804,15 +887,15 @@ function text2html(str,  ary, left, start, e) {
 	}
     }
     
-    # MediaWiki <nowiki> tag
-    if (match(str, /<nowiki[^>]*>/, ary)) {
+    # MediaWiki <nowiki> tag, 
+    if (match(str, /<(code|pre|nowiki)[^>]*>/, ary)) {
 	left = substr(str, 1, RSTART - 1);
 	str = substr(str, RSTART + RLENGTH);
 	text2html(left);
-	if (match(str, /<\/nowiki[^>]*>/)) {
+	if (match(str, "</" ary[1] "[^>]*>")) {
 	    left = substr(str, 1, RSTART -1);
 	    str = substr(str, RSTART + RLENGTH);
-	    html_tag("tt", "", raw2html(left,1));
+	    html_tag(ary[1] == "nowiki" ? "tt" : ary[1], "", raw2html(left,1));
 	    text2html(str);
 	} #else # FIXME: !
 #	    html_tag("tt", "", raw2html(str));
@@ -858,23 +941,34 @@ function text2html(str,  ary, left, start, e) {
     while (match(str, /\[\[(image|file):([^\]\|]+)(\|([^\]]*))?\]\]/, ary)) {
 	left = substr(str, 1, RSTART -1);
 	str = substr(str, RSTART + RLENGTH);
-	str = left mw_img(ary[2], ary[3]) str;
+	text2html(left);
+	printf "%s", mw_img(ary[2], ary[3]);
+	text2html(str);
+	return;
     }
  
     # checking links (1. MediaWiki, 2. & 3. Creole & MediaWiki)
     while ((e = match(str,/(^|[^\[])\[((https?|ftp|gopher|mailto|news):\/\/[^[:space:]\]]+)([[:space:]]*([^\]]+))?(\])/, ary)) \
 	  || match(str,/()\[\[(()[^\]\|]+)(\|([^\]]+))?\]\]/, ary) \
-	  || match(str,/(^|[^'">])((https?|ftp|gopher|mailto|news):\/\/[^[:space:]\]]+)/, ary) \
+	  || match(str,/(^|[^'">:])((https?|ftp|gopher|mailto|news):\/\/[^[:space:]\]]+)/, ary) \
 	   ) {
 	# (pre) (url) (proto) (caption with space) (caption without space) ]
+	#  [http://...
 	# (epmty) 
+	#  [[...]]
 	# (pre)
+	#  "http://..
 	left = substr(str,1, RSTART -1 + length(ary[1]));
 	if (e && !ary[5])  {
 	    left = left a_href(ary[2], "[" (e = ary_index(ELINKS, ary[2])) "]");
 	    if (ELINKS[0] < e) ELINKS[0] = e;
 	} else {
-	    left = left a_href(ary[2], (ary[5]) ? ary[5] : ary[2]);
+	    # MediaWiki external Images
+	    if (OPT["EXTERNAL_IMG"] && !e && !ary[5] && ary[2] ~ /\.(gif|png|jpe?g)/) {
+		left = left img("", ary[2], ary[2]);
+	    } else {
+		left = left a_href(ary[2], (ary[5]) ? ary[5] : ary[2]);
+	    }
 	}
 	str = left substr(str, RSTART + RLENGTH);
     }

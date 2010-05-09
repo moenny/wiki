@@ -101,7 +101,19 @@ img.bordered {
     border: 2px solid #888;
 }
 
-p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
+p:hover, tr:hover, pre:hover,
+    li:hover, dd:hover, dt:hover,
+/*    dl:hover, ol:hover, ul:hover,*/
+    h1:hover, h2:hover, h3:hover, h4:hover {
     background-color:#ffffff;
+    border-top: 1px solid #eee;
+    border-left: 1px solid #eee;
+/*    border-bottom: 1px solid #ddd;*/
+/*    border-bottom: 2px solid gray;*/
+
+    /*
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+    */
 }
 
