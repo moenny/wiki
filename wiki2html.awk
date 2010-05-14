@@ -51,10 +51,16 @@ BEGIN {
     REGEX_HTML["LIST"]   = "^(dl|ol|ul)$";
     REGEX_HTML["ITEM"]   = "^(li|dd|dt)$";
 
+    CHAR2LIST["*"] = "ul"; CHAR2ITEM["*"] = "li";
+    CHAR2LIST["#"] = "ol"; CHAR2ITEM["#"] = "li";
+    CHAR2LIST[";"] = "dl"; CHAR2ITEM[";"] = "dt";
+    CHAR2LIST[":"] = "dl"; CHAR2ITEM[":"] = "dd";
+
     UPTIME = uptime();
     
     TABLE = 0;
     CREOLE_TABLE = 0;
+    HEADING_LEVEL = 0;
     
     TAG[0] = 0;      # HTML tag stack
     TAG_IDENT[0] = 0;
@@ -67,6 +73,7 @@ BEGIN {
 
     REF[0] = 0;
     ELINKS[0] = 0;
+    TOC[0] = 0;
     
     DOC = "";
     
@@ -272,6 +279,7 @@ BEGIN {
 	    errstr = sprintf("Invalid document: %s\n",ENVIRON["PATH_INFO"]);
 	
 	printf "Content-Type: text/html\n\n";
+	if (CGI["mode"] ~ /^(cancel|save)$/) CGI["mode"] = "";
     }
 #    print "<!DOCTYPE html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' 'http://www.w3.org/TR/html4/loose.dtd'>";
     print "<!DOCTYPE html PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>";
@@ -290,6 +298,8 @@ BEGIN {
     if (OPT["ICON"])
 	html_tag("link", "rel='icon' type='image/png' href='" OPT["ICON"] "'");
 
+    if (1)
+	html_tag("script", "src='../wiki.js' type='text/javascript'", " ");
 #    html_close("head");
     html_tag("body");
     if (errstr) {
@@ -422,6 +432,20 @@ END {
 	html_tag("-"); # close the last tag
     }
 
+    if (TOC[0] > 1 && ! CGI["mode"]) {
+	html_tag("div", "class='toc' id='TOC' onmouseover='toc(this, 1);' onmouseout='toc(this, 0);'");
+	html_via_js("<div style='text-align:right'>[<a href='javascript:toc_close();'>-</a>]</div>");
+	for (i = 1; i <= TOC[0]; i++) {
+	    list_wiki2html(str_repeat("*", TOC[i,0]), "class='toc'");
+	    html_tag("a", "href='#" TOC[i,1] "' class='toc'", TOC[i,2]);
+#	    printf("<a %s", TOC[i,1]);
+	}
+	html_tag("-");
+	html_close("div");
+	html_tag("div", "class='toc' id='TOC_CLOSED' style='text-align:right;visibility:hidden' onmouseover='toc(this, 1);' onmouseout='toc(this, 0);'");
+	html_via_js("[<a href='javascript:toc_open();'>+</a>]");
+	html_close("div");
+    }
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/ && TAG[0]) {
 	html_tag("hr");
 
@@ -541,14 +565,12 @@ function html_close(tag, i, t) {
     # close after newline ?
     if (TAG_IDENT[TAG[0]]) {
 	html_debug("closing tag");
-	printf "\n";
-        i = (TAG[0]-1) * OPT["INDENT"];
-        while (i -- > 0) printf " ";
+	printf "\n%s", str_repeat(" ", (TAG[0]-1) * OPT["INDENT"]);
     }
    
     while (TAG[0] >= t) {
 	if (TAG[0] > t) html_warn("closing tag " TAG[TAG[0]] " to close " tag);
-	printf "</%s>", TAG[TAG[0]--];
+	if (TAG[--TAG[0]+1] != "-") printf "</%s>", TAG[TAG[0]+1];
     }
 }
 function html_tag(tag,attr,html,  i,br) {
@@ -633,9 +655,10 @@ function html_tag(tag,attr,html,  i,br) {
     html_debug("new tag");
 
     if (br = (tag ~ REGEX_HTML["INLINE"]) ? "" : "\n") {
-	printf br;
-	i = TAG[0] * OPT["INDENT"];
-	while (i -- > 0) printf " ";
+	printf "%s%s", br, str_repeat(" ", TAG[0] * OPT["INDENT"]);
+#	i = TAG[0] * OPT["INDENT"];
+#	while (i -- > 0) printf " ";
+	
     }
 
     IN_TAG[tag] ++;
@@ -657,7 +680,17 @@ function html_tag(tag,attr,html,  i,br) {
 #    printf "<!-- tag %s open-->", tag;
     return 1;
 }
-
+function html_via_js(html) {
+    html_tag("script", "type='text/javascript'" \
+	, "<!-- document.write(\"" raw2html(html,1) "\"); // -->" \
+	);
+}
+function str_repeat(str,count, ret,i) {
+    ret = "";
+    i = 0;
+    while (++i <= count) ret = ret str;
+    return ret;
+}
 function ary_index(ary, element, i) {
     i = 1;
     while (i <= ary[0] && ary[i] != element) i++;
@@ -832,24 +865,35 @@ function img(prefix, location, title, attr, link,  img_url) {
 		, title, prefix, location);
 }
 # MediaWiki image attributes
-function mw_img(location, opts,  ary, a, title, attr, link, ary2, frame, css) {
+function mw_img(location, opts,  ary, a, title, attr, link, ary2, css) {
     ary[0] = split(opts, ary, /\|/);
-    title = attr = frame = css = "";
+    title = attr = css = "";
     link = "0";
+    ary["x"] = "";
+    ary["y"] = "";
+    ary["frame"] = "";
     for (a = 1; a <= ary[0]; a ++) {
 	# Image format
 	if (ary[a] == "border") {
 	    attr = attr " class='bordered'";
 	} else if (ary[a] == "frame") {
-	    frame = " "; #padding:5px";
+	    ary["frame"] = "frame"; #padding:5px";
 	} else if (ary[a] ~ /^(thumb|frameless)$/) {
-	    attr = attr " width='80' height='80'"; # not really supported
-	    if (ary[a] == "thumb") frame = "width:80px;"; #padding:5px";
+
+	    #attr = attr " width='80' height='80'"; # not really supported
+#	    if (ary[a] == "thumb") 
+		ary["frame"] = ary[a]; #"thumb";
+	    #frame = "width:" ary["x"] "px;"; #padding:5px";
 	# 
 	} else if (match(ary[a], /^([0-9]+)x([0-9]+)px$/, ary2)) {
-	    attr = attr " width='" ary2[1] "' height='" ary2[2] "'";
+	    #attr = attr " width='" ary2[1] "' height='" ary2[2] "'";
+	    ary["x"] = ary2[1];
+	    ary["y"] = ary2[2];
 	} else if (match(ary[a], /^([0-9]+)px$/, ary2)) {
-	    attr = attr " width='" ary2[1] "'";
+	    ary["x"] = ary2[1];
+	    ary["y"] = "";
+#	    attr = attr " width='" ary2[1] "'";
+	    #attr = attr " width='" ary2[1] "'";
 	# Image alignment
 	} else if (ary[a] ~ /^(top|middle|bottom|text-top|text-bottom|baseline|sub|super)$/) {
 	    css = css "vertical-align:" ary[a] ";"; 
@@ -865,10 +909,20 @@ function mw_img(location, opts,  ary, a, title, attr, link, ary2, frame, css) {
 	    title = ary[a];
 	}
     }
+    if (ary["frame"] ~  /^(thumb|frameless)$/ && ! ary["x"])
+	ary["y"] = ary["x"] = 80;
+#	    if (! ary["x"]) ary["x"] = 80;
+#	    if (! ary["y"]) ary["y"] = 80;
+
     if (css) attr = attr " style='" css "'";
+    if (ary["x"]) attr = attr " width='" ary["x"] "'";
+    if (ary["y"]) attr = attr " height='" ary["y"] "'";
     if (link == "0") link = img_url(location); # TODO: handle by wiki?
-    if (frame) {
-	return  "<div class='frame' style='"frame"'>" img("File:", location, title, attr, link) "<br>" title "</div>";
+    if (ary["frame"] ~ /^(thumb|frame)$/) {
+	    #((ary["frame"] == "thumb") ? " style='width:" ary["x"] "px'" : "style='display:table-cell'") \
+	#return  "<div class='frame' style='display:table-cell'>" \
+	return  "<div class='frame' style='display:table-cell'>" \
+	    img("File:", location, title, attr, link) "<br>" title "</div>";
     } else {
 	return img("File:", location, title, attr, link);
     }
@@ -983,9 +1037,11 @@ function trim(str,f) {
     # f=3 internal link name
     if (f >= 3)  
 	gsub(/[^a-zA-Z0-9_-]+/, "_", str);
-    else if (f >= 2)  
+    else if (f >= 2) {
 	gsub(/[^a-zA-Z0-9_]+/, "_", str);
-    else if (f)
+	# id=
+	if (str !~ /^[a-zA-Z]/) str = "X" str;
+    } else if (f)
 	gsub(/[[:space:]_]+/, "_", str);
 
     if (f) gsub(/(^_+|_+$)/, "", str);
@@ -1011,6 +1067,55 @@ function unique_name(str,  i,add) {
 	print raw2html($0, 1);
 	next;
     }
+}
+function list_wiki2html(lists, attr, i,last_level,skip_levels) {
+
+    if (attr) attr = " " attr;
+    last_level = 0;
+    skip_levels = 0; 
+
+    for (i = 1; i <= TAG[0]; i ++)
+	if (TAG[i] ~ REGEX_HTML["LIST"])  {
+	    last_level ++;
+	    if (skip_levels == last_level -1 \
+		&& last_level <= length(lists)  \
+		&& TAG[i] == CHAR2LIST[substr(lists, last_level,1)] \
+		) skip_levels ++;
+	}
+
+    html_debug(sprintf("list levels %d of %d start %d" \
+	, length(lists), last_level, skip_levels));
+
+    for (i = skip_levels +1; i<= last_level; i++) {
+	html_debug("close parent list");
+	# close nested list item
+	if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) html_close();
+	html_close(); # close list
+    }
+   
+    if (skip_levels < last_level) {
+	# close parent list item
+        if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) {
+	    html_debug("close parent list item");
+	    html_close();
+	}
+    }
+    
+    # open child list
+    for (i = 1 + skip_levels; i <= length(lists); i++) {
+	if (i - skip_levels > 1) {
+	    html_debug("item for child list");
+	    html_tag((TAG[TAG[0]] == "dl") ? "dd" : "li", attr); # nested list
+	}
+	if (TAG[TAG[0]] == "dt") {
+	    html_close();
+	    html_tag("dd", attr);
+	}
+	html_debug(sprintf("new list in level %d", i));
+	html_tag(CHAR2LIST[substr(lists, i, 1)], attr);
+    }
+    # open current list item
+    html_tag(CHAR2ITEM[substr(lists, length(lists),1)], attr);
 }
 ### parsing ###
 # Creole table
@@ -1047,9 +1152,9 @@ CREOLE_TABLE {
 }
 # Headings
 match($0, /^(=+)([^=]+)(=+)/, ary) {
-    h = length(ary[length(ary[1]) >= length(ary[3]) ? 1 : 3]);
-    text = substr(ary[1], h +1) ary[2] substr(ary[3], h +1);
-    html_tag("h" h, "", sprintf("<a name='%s' href='#%s' class='head'>%s</a>",n = unique_name(text), n, raw2html(text,1)));
+    TOC[++TOC[0],0]= HEADING_LEVEL = length(ary[length(ary[1]) >= length(ary[3]) ? 1 : 3]);
+    TOC[TOC[0],2] = text = substr(ary[1], HEADING_LEVEL +1) ary[2] substr(ary[3], HEADING_LEVEL +1);
+    html_tag("h" HEADING_LEVEL, "", sprintf("<a name='%s' id='%s' href='#%s' class='head'>%s</a>",TOC[TOC[0],1] = n = unique_name(text), n, n, raw2html(text,1)));
     next;
 }
 # MediaWiki table
@@ -1101,60 +1206,9 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
 }
 # unordered-, ordered- and definition list
 (/^([#;:\*]+)/ && match(formating($0), /^([#;:\*]+)/)) {
-
     lists = substr($0, 1 ,RLENGTH);
     $0 = substr($0, RSTART + RLENGTH);
-
-    CHAR2LIST["*"] = "ul"; CHAR2ITEM["*"] = "li";
-    CHAR2LIST["#"] = "ol"; CHAR2ITEM["#"] = "li";
-    CHAR2LIST[";"] = "dl"; CHAR2ITEM[";"] = "dt";
-    CHAR2LIST[":"] = "dl"; CHAR2ITEM[":"] = "dd";
-
-    last_level = 0;
-   
-    skip_levels = 0; 
-    for (i = 1; i <= TAG[0]; i ++)
-	if (TAG[i] ~ REGEX_HTML["LIST"])  {
-	    last_level ++;
-	    if (skip_levels == last_level -1 \
-		&& last_level <= length(lists)  \
-		&& TAG[i] == CHAR2LIST[substr(lists, last_level,1)] \
-		) skip_levels ++;
-	}
-
-    html_debug(sprintf("list levels %d of %d start %d" \
-	, length(lists), last_level, skip_levels));
-
-    for (i = skip_levels +1; i<= last_level; i++) {
-	html_debug("close parent list");
-	# close nested list item
-	if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) html_close();
-	html_close(); # close list
-    }
-   
-    if (skip_levels < last_level) {
-	# close parent list item
-        if (TAG[0] > 0 && TAG[TAG[0]] ~ REGEX_HTML["ITEM"]) {
-	    html_debug("close parent list item");
-	    html_close();
-	}
-    }
-    
-    # open child list
-    for (i = 1 + skip_levels; i <= length(lists); i++) {
-	if (i - skip_levels > 1) {
-	    html_debug("item for child list");
-	    html_tag((TAG[TAG[0]] == "dl") ? "dd" : "li"); # nested list
-	}
-	if (TAG[TAG[0]] == "dt") {
-	    html_close();
-	    html_tag("dd");
-	}
-	html_debug(sprintf("new list in level %d", i));
-	html_tag(CHAR2LIST[substr(lists, i, 1)]);
-    }
-    # open current list item
-    html_tag(CHAR2ITEM[substr(lists, length(lists),1)]);
+    list_wiki2html(lists);
     text2html($0);
     next;
 }

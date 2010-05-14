@@ -101,19 +101,48 @@ img.bordered {
     border: 2px solid #888;
 }
 
-p:hover, tr:hover, pre:hover,
-    li:hover, dd:hover, dt:hover,
-/*    dl:hover, ol:hover, ul:hover,*/
-    h1:hover, h2:hover, h3:hover, h4:hover {
+p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
     background-color:#ffffff;
-    border-top: 1px solid #eee;
-    border-left: 1px solid #eee;
-/*    border-bottom: 1px solid #ddd;*/
-/*    border-bottom: 2px solid gray;*/
-
-    /*
-    border-top: 1px solid black;
-    border-bottom: 1px solid black;
-    */
+}
+div.toc {
+    position:fixed;
+    width: 160px;
+    bottom:-0px;
+    right:-0px;
+    background-color:#eaeaea;
+    /* set opacity via javascript to pass CSS validator */
+/*    opacity: 0.25; */
+    /* IE8 */
+/*    -ms-filter:"progid:DXImageTransform.Microsoft.Alpha(Opacity=25)";*/
+    /* IE5+ */
+  /*  filter: alpha(opacity=25);*/
+    border-top: #ffffff solid 1px;
+    border-left: #ffffff solid 1px;
+    border-bottom: #d5d5d5 solid 1px;
+    border-right: #d5d5d5 solid 1px;
+}
+a.toc {
+    display:block;
+    /* border: solid #eaeaea 1px; */
+    border: none 1px;
+    color: #004;
+}
+a.in_toc {
+    display:block;
+    color: #004;
+    border: solid #000 1px;
+    background-color: #fff;
+}
+.toc {
+    font-size: 8px;
+    margin:1px;
+    padding: 0;
+}
+ul.toc {
+    padding: 2px;
+    list-style-type:disc;
+}
+li.toc, dd.doc {
+    margin-left: 1em;
 }
 
