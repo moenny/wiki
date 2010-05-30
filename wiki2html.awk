@@ -22,7 +22,9 @@ BEGIN {
     OPT["DRAFT_VIEW"]  = 1;
 
     OPT["UPLOAD_DIR"] = "uploads";
-    OPT["UPLOAD_URL"] = "uploads";
+    OPT["UPLOAD_URL"] = "../uploads";
+    OPT["THUMB_DIR"]  = "thumbs";
+    OPT["THUMB_URL"]  = "../thumbs";
 
     OPT["EXTERNAL_IMG"] = 1;
 
@@ -90,6 +92,7 @@ BEGIN {
 	OPT["DOC_DIR"] = abs_path(OPT["DOC_DIR"]);
 	OPT["IMG_DIR"] = abs_path(OPT["IMG_DIR"]);
 	OPT["UPLOAD_DIR"] = abs_path(OPT["UPLOAD_DIR"]);
+	OPT["THUMB_DIR"] = abs_path(OPT["THUMB_DIR"]);
 	
 	SELF = "http://" ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"];
 	if (ENVIRON["REQUEST_METHOD"] == "POST") {
@@ -818,34 +821,54 @@ function a_href(link, html, class) {
     }
     return sprintf("<a href='%s' class='%s'>%s</a>", link, class, html);
 }
-function img_url(location) {
+function img_key(location) {
     if (OPT["UPLOAD_DIR"] && f_readable(OPT["UPLOAD_DIR"] "/" location) > 0)
-	return "../" OPT["UPLOAD_URL"] "/" location;
+	return "UPLOAD";
     else if (OPT["IMG_DIR"] && f_readable(OPT["IMG_DIR"] "/" location) > 0)
-	return OPT["IMG_URL"] "/" location;
+	return "IMG";
     else
 	return "";
 }
-function img(prefix, location, title, attr, link,  img_url) {
-    if (attr ~ /^[^[[:space:]]/) attr = " " attr;
-    if (attr !~ /alt=/) attr = attr " alt='" title "'";
+function img(prefix, location, title, ary,  img_url, img_file) {
+    if (ary["attr"] !~ /alt=/) ary["attr"] = ary["attr"] " alt='" title "'";
+    if (ary["x"]) ary["attr"] = ary["attr"] " width='" ary["x"] "'";
+    if (ary["y"]) ary["attr"] = ary["attr"] " height='" ary["y"] "'";
+
+    if (ary["attr"] ~ /^[^[[:space:]]/) ary["attr"] = " " ary["attr"];
+    
     if (title) title = " title='" title "'";
     if (location ~ /^(.+:\/\/)/) {
 	if (! prefix && OPT["EXTERNAL_IMG"]) { # Creole external image
-	    return sprintf("<img src='%s'%s>", location,  attr title);
+	    return sprintf("<img src='%s'%s>", location, ary["attr"], title);
 	} else {
 	    return sprintf("<a href='%s' class='extern'%s>%s</a>" \
-		    , (link) ? link : location, title, location);
+		    , (ary["link"]) ? ary["link"] : location, title, location);
 	}
     } else if (! index("/" location "/", "/../")) {
-	if (img_url = img_url(location)) {
-	    if (link) {
-		return a_href(link, sprintf( "<img src='%s'%s>" \
-			         , img_url,  attr title));
+	if (img_url = img_key(location)) {
+	    # generate thumn ?
+	    if (location !~ /\// \
+		    && (ary["x"] || ary["y"]) && OPT["THUMB_DIR"]) {
+		ary["geo"] = ary["x"] "x" ary["y"];
+		ary["thumb"] =  ary["geo"] "-" location;
+		img_file = OPT[img_url "_DIR"] "/" location;
+		img_url = OPT["THUMB_URL"] "/" ary["thumb"];
+		
+		if (f_readable(OPT["THUMB_DIR"] "/" ary["thumb"]) < 0)
+		    system("convert -resize " ary["geo"] \
+			" " img_file \
+			" " OPT["THUMB_DIR"] "/" ary["thumb"] \
+			);
+	    } else
+		img_url = OPT[img_url "_URL"] "/" location;
+
+	    if (ary["link"]) {
+		return a_href(ary["link"], sprintf( "<img src='%s'%s>" \
+			         , img_url,  ary["attr"] title));
 	    } else {
-		return sprintf("<img src='%s'%s>", img_url,  attr title);
+		return sprintf("<img src='%s'%s>", img_url, ary["attr"] title);
 	    }
-	} else if (OPT["UPLOAD_DIR"] && ! link) {
+	} else if (OPT["UPLOAD_DIR"] && ! ary["link"]) {
 
 	    if (CGI["upload"] == location) 
 		return sprintf("<div><form method='POST' action='%s%s' enctype='multipart/form-data'><p><input type='hidden' name='file' value='%s'><input name='upload' type='file'><input type='submit' value='upload'></p></form></div>" \
@@ -861,48 +884,39 @@ function img(prefix, location, title, attr, link,  img_url) {
 	}
     }
     return sprintf("<a href='%s' class='intern_missing'%s>%s%s</a>" \
-		, ((link) ? link : OPT["UPLOAD_URL"] "/" location) \
+		, ((ary["link"]) ? ary["link"] : OPT["UPLOAD_URL"] "/" location) \
 		, title, prefix, location);
 }
 # MediaWiki image attributes
-function mw_img(location, opts,  ary, a, title, attr, link, ary2, css) {
+function mw_img(location, opts,  ary, a, title, ary2, css) {
     ary[0] = split(opts, ary, /\|/);
-    title = attr = css = "";
-    link = "0";
-    ary["x"] = "";
-    ary["y"] = "";
-    ary["frame"] = "";
+    title = css = "";
+    ary["link"] = "0";
+    ary["x"] = ary["y"] = ary["frame"] = ary["attr"] = "";
     for (a = 1; a <= ary[0]; a ++) {
 	# Image format
 	if (ary[a] == "border") {
-	    attr = attr " class='bordered'";
+	    ary["attr"] = ary["attr"] " class='bordered'";
 	} else if (ary[a] == "frame") {
 	    ary["frame"] = "frame"; #padding:5px";
 	} else if (ary[a] ~ /^(thumb|frameless)$/) {
-
-	    #attr = attr " width='80' height='80'"; # not really supported
-#	    if (ary[a] == "thumb") 
-		ary["frame"] = ary[a]; #"thumb";
-	    #frame = "width:" ary["x"] "px;"; #padding:5px";
+	    ary["frame"] = ary[a]; #"thumb";
 	# 
 	} else if (match(ary[a], /^([0-9]+)x([0-9]+)px$/, ary2)) {
-	    #attr = attr " width='" ary2[1] "' height='" ary2[2] "'";
 	    ary["x"] = ary2[1];
 	    ary["y"] = ary2[2];
 	} else if (match(ary[a], /^([0-9]+)px$/, ary2)) {
 	    ary["x"] = ary2[1];
 	    ary["y"] = "";
-#	    attr = attr " width='" ary2[1] "'";
-	    #attr = attr " width='" ary2[1] "'";
 	# Image alignment
 	} else if (ary[a] ~ /^(top|middle|bottom|text-top|text-bottom|baseline|sub|super)$/) {
 	    css = css "vertical-align:" ary[a] ";"; 
 	} else if (ary[a] ~ /^(left|right|center|none)$/) {
 	    css = css "float:" ary[a] ";"; 
 	} else if (ary[a] ~ /^(alt=)/) {
-	    attr = attr " alt='" substr(ary[a], 1 +4) "'";
+	    ary["attr"] = ary["attr"] " alt='" substr(ary[a], 1 +4) "'";
 	} else if (ary[a] ~ /^(link=)/) {
-	    link = substr(ary[a], 1 + 5);
+	    ary["link"] = substr(ary[a], 1 + 5);
 	} else if (ary[a] ~ /^(page=)/) {
 	    ; # not supported
 	} else {
@@ -914,17 +928,19 @@ function mw_img(location, opts,  ary, a, title, attr, link, ary2, css) {
 #	    if (! ary["x"]) ary["x"] = 80;
 #	    if (! ary["y"]) ary["y"] = 80;
 
-    if (css) attr = attr " style='" css "'";
-    if (ary["x"]) attr = attr " width='" ary["x"] "'";
-    if (ary["y"]) attr = attr " height='" ary["y"] "'";
-    if (link == "0") link = img_url(location); # TODO: handle by wiki?
+    if (css) ary["attr"] = ary["attr"] " style='" css "'";
+
+    # TODO: handle by wiki?
+    if (ary["link"] == "0" && ary["link"] = img_key(location))
+	ary["link"] = OPT[ary["link"] "_URL"] "/" location;
+
     if (ary["frame"] ~ /^(thumb|frame)$/) {
 	    #((ary["frame"] == "thumb") ? " style='width:" ary["x"] "px'" : "style='display:table-cell'") \
 	#return  "<div class='frame' style='display:table-cell'>" \
 	return  "<div class='frame' style='display:table-cell'>" \
-	    img("File:", location, title, attr, link) "<br>" title "</div>";
+	    img("File:", location, title, ary) "<br>" title "</div>";
     } else {
-	return img("File:", location, title, attr, link);
+	return img("File:", location, title, ary);
     }
 }
 function text2html(str,  ary, left, start, e) {
