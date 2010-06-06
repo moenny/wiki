@@ -1,0 +1,427 @@
+= (ala)wiki =
+== About ==
+Alawiki is a simple and very fast WikiEngine (really faster than MediaWiki<ref>http://www.mediawiki.org</ref> and others).
+
+=== Changes ===
+; wiki-20100605
+: added: meta data support via definition lists
+: added: automatically linking of keywords
+: added: button 'sitemap', button 'new' to create new page
+
+; wiki-20100530.tgz
+
+; wiki-20100514.tgz
+
+; wiki-20100509.tgz
+: bugfix: don't format links again in images
+: bugfix: support code, pre & nowiki tag in inline tags & lists
+: added: support for Creole & MediaWiki inline images from external 
+: added: support to upload images when internal image is missing
+
+; wiki-20100117.tgz
+: bugfix: special characters in internal links fixed
+
+; wiki-20100104.tgz
+: bugfix: closing nowiki block corrected
+: bugfix: cell alignment detection in the last cell corrected
+: bugfix: reference numbering corrected
+: bugfix: don't open a paragraphs in table cells
+: bugfix: close pre tag before open new table row if necessary
+: changed: Creole table works now in a MediaWiki table cell
+: changed: formatting MediaWiki images via CSS and link to the image by default
+
+; wiki-20100102.tgz
+: bugfix: further HTML code generation cleanup
+: bugfix: list code rewritten to generate valid HTML
+: changed: use named anker instead id in headers
+
+; wiki-20091231.tgz
+: bugfix: generate valid HTML in nested lists
+: bugfix: handle nested MediaWiki tables
+: bugfix: cell alignment detection in tables
+: changed: keep preformatted and tables in lists 
+: bugfix: HTML code generation cleanup
+: added: HTML & CSS validator links
+: added: optional authorization prepared
+: added: support for creole images, nowiki tag ~{~{~{ and escape character ~
+: added: basic support for MediaWiki images and some image attributes
+: added: support for MediaWiki nowiki tag
+
+; wiki-20091229.tgz
+: bugfix: parse wiki tags in preformated text with space at the beginning of the line
+: bugfix: more special character translations
+: bugfix: handle creole tables without ending | correctly
+: bugfix: parse wiki tags in creole tables
+: added: support for creole line break
+: added: support to view, diff, edit and discard the draft file (when OPT["DRAFT_VIEW"] enabled)
+: added: OPT["DOC_DIR"]
+
+; wiki-20091227.tgz **(first release)**
+: bugfix: save dosn't append new line on each row 
+: bugfix: misc code cleanups
+: added: support for MediaWiki compatible attributes on table rows <ref>[[http://www.mediawiki.org/wiki/Help:Tables#Attributes_on_rows]]</ref>, [[# Definition list|definition lists]] <ref>[[http://www.mediawiki.org/wiki/Help:Formatting#Text formatting markup]]</ref>
+: added: support for creole & MediaWiki [[#Character formatting]]
+: added: diff mode during editing
+: changed: [[#cell alignment detection]] improved
+
+; wiki-20091226a.tgz
+: bugfix: handle numbered external links
+: bugfix: handle simplest wiki markup table structure
+: bugfix: check write permission before edit mode allowed
+: added: support for creole tables <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Tables</ref>, horizontal rules <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-HorizontalRule</ref>, line breaks <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-LineBreaks</ref>
+: changed: cells with numbers are right aligned by default
+
+; wiki-20091226.tgz
+: initial:
+
+=== Components ===
+* [[../wiki2html.awk|wiki2html.awk]]: text prozessor
+* [[../wiki.cgi|wiki.cgi]]: symlink to wiki2html.awk
+
+==== Optional ====
+* [[../wiki.css|wiki.css]]: Stylesheet
+* header: <span style='color:red'>TODO</span>
+* footer: <span style='color:red'>TODO</span>
+
+=== Limits ===
+The page name must be between 3 and 32 characters long. They can contain letters (A-Z, a-z), numbers (0-9) or underscores (_).
+
+=== Syntax ===
+compatible to the MediaWiki-Textformat <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> and/or partially to MoinMoin <ref>http://moinmo.in/</ref>
+
+{|
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Headings</ref> & MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> Headings
+ |-
+ | {{{ = Head 1 = }}}                         || <h1>Head 1</h1>
+ |-
+ | {{{ == Head 2 == }}}                       || <h2>Head 2</h2>
+ |-
+ | {{{ === Head 3 === }}}                     || <h3>Head 3</h3>
+ |-
+ | {{{ ==== Head 4 ==== }}}                   || <h4>Head 4</h4>
+ |-
+ | {{{ ===== Head 5 ===== }}}                 || <h5>Head 5</h5>
+ |-
+ | {{{ ====== Head 6 ====== }}}               || <h6>Head 6</h6>
+ |-
+ | {{{ === not **bold** or //italic// === }}}         
+ |
+=== not **bold** or //italic// ===
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-BoldAndItalics</ref> text formating
+ |-
+ | {{{ **bold** }}}                           || **bold**
+ |-
+ | {{{ //italic// }}}                         || //italic//
+ |-
+ | {{{  **//bold and italic//** }}}           || **//bold and italic//**
+ |-
+ | {{{  //**italic and bold**// }}}           || //**italic and bold**//
+ |-
+ | {{{  **bold** or //italic// }}}            || **bold** or //italic//
+ |-
+ | {{{  //italic// or **bold**  }}}           || //italic// or **bold**
+ |-
+ | {{{  //** not italic and not bold //** }}} || //** not italic and not bold //**
+ |-
+ | {{{  **// not bold and not italic **// }}} || **// not bold and not italic **//
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> text formating
+ |-
+ | <nowiki> ''italic'' </nowiki>                         ||''italic''
+ |-
+ | <nowiki> '''bold''' </nowiki>                         ||'''bold'''
+ |-
+ | <nowiki> '''''bold & italic''''' </nowiki>            ||'''''bold & italic''''' 
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-HorizontalRule</ref> & MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> horizontal rule
+ |-
+ | {{{ ---- }}}
+ |
+----
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Lists</ref> & Mediawiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> lists 
+ |-
+ |
+ # numbered item 1
+ # numbered item 2
+ ## numbered sub item 2.1
+ ## numbered sub item 2.2
+ # numbered item 3
+ |
+# numbered item 1
+# numbered item 2
+## numbered sub item 2.1
+## numbered sub item 2.2
+# numbered item 3
+ |-
+ |
+ * unnumbered item 1
+ * unnumbered item 2
+ ** unnumbered sub item 2.1
+ ** unnumbered sub item 2.2
+ * unnumbered item 3
+ |
+* unnumbered item 1
+* unnumbered item 2
+** unnumbered sub item 2.1
+** unnumbered sub item 2.2
+* unnumbered item 3
+ |
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> Definition and mixed lists
+ |-
+ |
+ ; title
+ : definition 1
+ : definition 2
+ :: definition 2.1
+ |
+; title
+: definition 1
+: definition 2
+:: definition 2.1
+ |-
+ |
+ * unnumbered item 1
+ * unnumbered item 2
+ *# sub item * #
+ #* sub item # *
+ * unnumbered item 3
+ |
+* unnumbered item 1
+* unnumbered item 2
+*# sub item * #
+#* sub item # *
+* unnumbered item 3
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-NowikiPreformatted</ref> preformatted text
+ |-
+ |
+<pre>{{{
+ not //italic// formated by wiki
+ not <i>italic</i> formated by html
+ not a [[#anchor]]
+}}}</pre>
+ |
+{{{
+ not //italic// formated by wiki
+ not <i>italic</i> formated by html
+ not a [[#anchor]]
+}}}
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting</ref> Preformatted text
+ |-
+ |
+<pre>
+ ''italic'' formated by wiki
+ <i>italic</i> formated by html
+ [[#anchor]]
+</pre>
+ |
+ ''italic'' formated by wiki
+ <i>italic</i> formated by html
+ [[#anchor]]
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Formatting#HTML</ref> HTML Preformatted text
+ |-
+ | {{{ <tt>Fixed width text</tt> }}} || <tt>Fixed width text</tt>
+ |-
+ | {{{ <code>source code</code> }}}  || <code>source code</code>
+ |-
+ |
+{{{
+<pre>
+not ''italic'' formated by wiki
+not <i>italic</i> formated by html
+not [[#anchor]]
+</pre>
+}}}
+ |
+<pre>
+not ''italic'' formated by wiki
+not <i>italic</i> formated by html
+not [[#anchor]]
+</pre>
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-LinksInternalExternalAndInterwiki</ref> & MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Links</ref> Links 
+ |-
+ | <nowiki>[[#internal anchor]]</nowiki> || [[#internal anchor]]
+ |-
+ | <nowiki>internal [[link]] to other wiki page</nowiki>
+ | internal [[link]] to other wiki page
+ |-
+ | <nowiki>piped link [[link|with different text]]</nowiki>
+ | piped link [[link|with different text]]
+ |-
+ | <nowiki>external link http://www.mediawiki.org</nowiki>
+ | external link http://www.mediawiki.org
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref> external links 
+ |-
+ | <nowiki>external link [http://www.mediawiki.org with different text]</nowiki><ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+ | external link [http://www.mediawiki.org with different text]
+ |-
+ | <nowiki>external link numbered [http://www.kernel.org]</nowiki><ref>http://www.mediawiki.org/wiki/Help:Links#External_links</ref>
+ | external link numbered [http://www.kernel.org]
+ |-
+ ! colspan=2 | HTML links
+ |-
+ | <nowiki>HTML link <a href="http://www.mediawiki.org">MediaWiki</a></nowiki>
+ | HTML link <a href="http://www.mediawiki.org">MediaWiki</a>
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-ImageInline</ref> inline images
+ |-
+ | {{{ {{apache_pb.gif|Apache logo}} }}}       
+ | {{apache_pb.gif|Apache logo}}
+ |-
+ | {{{ {{apache_pb.gif}} }}} (also supported <ref>http://www.wikicreole.org/wiki/ImagesReasoning</ref>)
+ | {{apache_pb.gif}}
+ |-
+ ! colspan=2 | external Creole*<ref>http://www.wikicreole.org/wiki/ImagesReasoning</ref> inline images
+ |-
+ | {{{ {{http://www.gnu.org/graphics/avatar-3d-gnu.png}} }}}
+ | {{http://www.gnu.org/graphics/avatar-3d-gnu.png}}
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Images</ref> images
+ |-
+ | <nowiki>text [[File:apache_pb.gif|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|200px|border|top|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|200px|border|top|caption]] text
+ |-
+ | <nowiki>text [[[File:apache_pb.gif|100x20px|middle|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|100x20px|middle|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|frame|bottom|left|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|frame|bottom|left|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|link=http://www.apache.org|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|link=http://www.apache.org|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|link=|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|link=|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|thumb|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|thumb|caption]] text
+ |-
+ | <nowiki>text [[File:apache_pb.gif|frameless|border|right|caption]] text</nowiki>
+ | text [[File:apache_pb.gif|frameless|border|right|caption]] text
+ |-
+ ! colspan=2 | external MediaWiki<ref>http://www.mediawiki.org/wiki/Help:Images#Files_at_other_websites</ref> images
+ |-
+ | <nowiki>[http://www.gnu.org/graphics/avatar-3d-gnu.png link to external image]</nowiki>
+ | [http://www.gnu.org/graphics/avatar-3d-gnu.png link to external image]
+ |-
+ | <nowiki>http://www.gnu.org/graphics/avatar-3d-gnu.png</nowiki>
+ | http://www.gnu.org/graphics/avatar-3d-gnu.png
+ |-
+ ! colspan=2 | Creole <ref>http://www.wikicreole.org/wiki/Creole1.0#section-Creole1.0-Tables</ref> Tables
+ |-
+ |
+<pre>
+|=Head A        |=Head B                |
+|Cell A1        |Two lines\\in Cell B1  |
+|Cell A2        |Cell B2                |
+</pre>
+ |
+|=Head A        |=Head B                |
+|Cell A1        |Two lines\\in Cell B1  |
+|Cell A2        |Cell B2                |
+ |-
+ ! colspan=2 | MediaWiki <ref>http://www.mediawiki.org/wiki/Help:Tables</ref> tables
+ |-
+ |
+<pre>
+{|
+! Head A 
+! Head B 
+|-
+| Cell A1
+| Cell B1
+|-
+| Cell A2
+| Cell B2
+|}
+</pre>
+ |
+{|
+! Head A 
+! Head B 
+|-
+| Cell A1
+| Cell B1
+|-
+| Cell A2
+| Cell B2
+|}
+ |-
+ |
+<pre>
+{|
+! Head A !! Head B 
+|-
+| Cell A1 || Cell B1
+|-
+| Cell A2 || Cell B2
+|}
+</pre>
+ |
+{|
+! Head A !! Head B 
+|-
+| Cell A1 || Cell B1
+|-
+| Cell A2 || Cell B2
+|}
+ |-
+ |
+<pre>
+{| border="2"
+! Head A !! Head B !! Head C
+|-
+| Cell A1 || Cell B1 || rowspan=3 | Cell C1-C3
+|- style="font-style:italic; color:green;"
+| Cell A2 || Cell B2 
+|-
+| colspan="2" align="center" | Cell A3-B3
+|}
+</pre>
+ |
+{| border="2"
+! Head A !! Head B !! Head C
+|-
+| Cell A1 || Cell B1 || rowspan=3 | Cell C1-C3
+|- style="font-style:italic; color:green;"
+| Cell A2 || Cell B2 
+|-
+| colspan="2" align="center" | Cell A3-B3
+|}
+ |-
+ ! colspan=2 | Special feature: cell alignment detection
+ |-
+ |
+<pre>
+|= Heading Col 1 |= Heading Col 2 |= Heading Col 3 |
+|           right|  center        |left            |
+| 1,234.56       |  -             | 1.2.3          |
+|      not right | not center     | left ?         |
+</pre>
+ |
+|= Heading Col 1 |= Heading Col 2 |= Heading Col 3 |
+|           right|  center        |left            |
+| 1,234.56       |  -             | 1.2.3          |
+|      not right | not center     | left ?         |
+ |} 
+
+=== TODOs ===
+Multible and/or grouped cites<ref>http://www.mediawiki.org/wiki/Extension:Cite/Cite.php#Usage</ref> with <code><ref></code> aren't supported.
+
+== Links ==
+* WikiWiki [http://c2.com/cgi/wiki?WikiWikiSandbox Sandbox]
+* [http://de.wikipedia.org/wiki/Creole_(Markup) Creole]
+** Creole markup http://www.wikicreole.org/wiki/Creole1.0
+* MediaWiki [http://www.mediawiki.org/w/index.php?title=Sandbox&action=edit Sandbox]
+* Wikipedia [http://de.wikipedia.org/wiki/Spezial:Meine_Benutzerseite/Spielwiese Sandbox]
+* MoinMoin [http://moinmo.in/4ct10n/edit/WikiSandBox?action=edit&editor=text Sandbox]

@@ -1,4 +1,4 @@
-body { background-color: #eee ; color: #222 ; font-family: sans-serif; }
+body { background-color: #eee ; color: #222 ; font-family: sans-serif; font-size: 12px; }
 th { background-color: #ddd; }
 tr.even { background-color: #e8e8e8; }
 tr.odd  { background-color: #f0f0f0; }
@@ -20,6 +20,9 @@ pre { background-color: #222 ; color: #eee ; border: 1px; }
      
 a.intern {
     color: #484;
+}
+a.current {
+    color: #242;
 }
 a.local {
     color: #848;
@@ -71,6 +74,17 @@ h1, h2, h3 {
     border-bottom: 1px dotted #ddd;
 }
 
+/*
+h1.META {
+    font-size: 14px;
+}
+h2.META {
+    font-size: 12px;
+}
+.META {
+    font-size: 10px;
+}
+*/
 pre {
     border: 1px dotted #000;
     background-color: #ccc;
@@ -104,6 +118,14 @@ img.bordered {
 p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
     background-color:#ffffff;
 }
+
+dt {
+    margin-top: 2px;
+    font-weight: bold;
+}
+/*
+ * TOC
+ */
 div.toc {
     position:fixed;
     width: 160px;

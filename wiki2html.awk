@@ -19,6 +19,7 @@ BEGIN {
     OPT["PROC_UPTIME"] = "/proc/uptime";
     OPT["CSS_SCREEN"]  = "../wiki.css";
     OPT["DOC_DIR"]     = "wikidocs";
+    OPT["META_DIR"]    = "meta";
     OPT["DRAFT_VIEW"]  = 1;
 
     OPT["UPLOAD_DIR"] = "uploads";
@@ -38,6 +39,9 @@ BEGIN {
     # 3: for edit & view source & view draft 
     OPT["LOGIN"] = 0;
 
+    HAVE_DOC[""] = "";
+#    DOC_EXISTS[0] = 0;
+
     if (ENVIRON["SERVER_NAME"] == "dual.c-w-m.loc")
         OPT["HTML_CHECK"] = "<a href='/dyna/validator-0.8.5/htdocs/check?uri=referer' class='etool'>valid HTML:<img src='/project.new/validator/html.cgi' alt='' style='border:0px'></a>" \
      " <a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
@@ -49,7 +53,7 @@ BEGIN {
 #    OPT["HTML_CHECK"] = "<a href='/dyna/validator-0.8.5/htdocs/check?uri=referer' class='etool'>validate HTML</a>" \
  #    " <a href='http://jigsaw.w3.org/css-validator/check/referer' class='etool'>validate CSS</a>";
 
-    REGEX_HTML["INLINE"] = "^(a|b|code|em|i|strong|tt)$";
+    REGEX_HTML["INLINE"] = "^(a|b|code|em|i|span|strong|tt)$";
     REGEX_HTML["LIST"]   = "^(dl|ol|ul)$";
     REGEX_HTML["ITEM"]   = "^(li|dd|dt)$";
 
@@ -63,20 +67,27 @@ BEGIN {
     TABLE = 0;
     CREOLE_TABLE = 0;
     HEADING_LEVEL = 0;
+    DT_WORD = "";
+    PART = "HEAD";
     
     TAG[0] = 0;      # HTML tag stack
     TAG_IDENT[0] = 0;
     IN_TAG[0] = 0;   # HTML tag counter
     HTML_ID[0] = 0;
+    LAST_TAG = "";
     
     RAW = "";
     SELF = "";
     RW = 0;
 
     REF[0] = 0;
-    ELINKS[0] = 0;
+    ELINKS[0] = 0; # FIXME !?!
     TOC[0] = 0;
-    
+
+    KEYWORDS[0] = 0;
+    KEYVALUE[0] = 0;
+   
+#    FILE2TYPE ;
     DOC = "";
     
     DST_FILE = "";
@@ -90,6 +101,7 @@ BEGIN {
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/) {
 
 	OPT["DOC_DIR"] = abs_path(OPT["DOC_DIR"]);
+	OPT["META_DIR"] = abs_path(OPT["META_DIR"]);
 	OPT["IMG_DIR"] = abs_path(OPT["IMG_DIR"]);
 	OPT["UPLOAD_DIR"] = abs_path(OPT["UPLOAD_DIR"]);
 	OPT["THUMB_DIR"] = abs_path(OPT["THUMB_DIR"]);
@@ -121,7 +133,7 @@ BEGIN {
 		if (line != boundary "--\r")
 		    errstr = sprintf("upload error '%s'", boundary);
 		else {
-		    if (CGI["file"] && CGI["file"] !~ /\// && \
+		    if ((CGI["file"] = is_docname(CGI["file"])) && \
 			CGI["upload"] && OPT["UPLOAD_DIR"] \
 			) {
 			if (f_readable(OPT["UPLOAD_DIR"] "/" CGI["file"])>=0) {
@@ -166,15 +178,19 @@ BEGIN {
 	if (! ENVIRON["PATH_INFO"]) {
 	    printf "Location: %s/%s\n\n", SELF, OPT["DEFAULT_DOC"];
 	    exit(EXIT = 1);
+	} else if (CGI["new"]) {
+	    while (match(CGI["new"], /^(.*)[ _]+([A-Z].*)/,ary))
+		CGI["new"] = ary[1] ary[2];
+		   
+	    printf "Location: %s/%s?mode=edit\n\n", SELF, CGI["new"];
+	    exit(EXIT = 1);
 #	} else if (match(ENVIRON["PATH_INFO"], /^\/([a-zA-Z0-9_-]+)$/, ary) \
 	} else if (substr(ENVIRON["PATH_INFO"], 1, 1) == "/" \
-	    && trim(docfile = substr(ENVIRON["PATH_INFO"], 2), 3) == docfile \
-	    && length(docfile) >= 1 \
-	    && length(docfile) <= OPT["MAX_INTERNALLINK_LENGTH"] \
+	    && (DOCNAME = is_docname(substr(ENVIRON["PATH_INFO"], 2))) \
 	    ) {
 	    ARGC =1;
-	    #DOC = gensub(/_/, " ", "g", docfile = ary[1]);
-	    DOC = gensub(/_/, " ", "g", docfile);
+	    #DOC = gensub(/_/, " ", "g", DOCNAME = ary[1]);
+	    DOC = gensub(/_/, " ", "g", DOCNAME);
 
 	    if (CGI["mode"] == "login") {
 		#&& (! ENVIRON["AUTH_TYPE"] || ! ENVIRON["REMOTE_USER"])) {
@@ -188,7 +204,7 @@ BEGIN {
 		CGI["mode"] = "";
 	    }
 
-	    SRC_FILE = OPT["DOC_DIR"] "/" docfile;
+	    SRC_FILE = OPT["DOC_DIR"] "/" DOCNAME;
 
 	    if (OPT["DRAFT_VIEW"]) {
 		draftfile = SRC_FILE ".draft";
@@ -196,7 +212,7 @@ BEGIN {
 		if (CGI["mode"] ~ /^(draft|edit-draft|diff-draft)$/)
 		    CGI["mode"] = "";
 
-		draftfile = OPT["TMP_PREFIX"] docfile;
+		draftfile = OPT["TMP_PREFIX"] DOCNAME;
 	    }
 	    
 	    if (OPT["ALLOW_EDIT"])
@@ -238,10 +254,10 @@ BEGIN {
 		printf "" > draftfile;
 		close(draftfile);
 		if (CGI["mode"] == "discard") {
-		    printf "Location: %s/%s\n\n", SELF, docfile;
+		    printf "Location: %s/%s\n\n", SELF, DOCNAME;
 		    exit(EXIT = 3);
 		}
-		savefile = OPT["DOC_DIR"] "/"  docfile;
+		savefile = OPT["DOC_DIR"] "/" DOCNAME;
 		if (OPT["USE_SYMLINK"])
 		    if(system(sprintf("ln -sfn %s%s %s" \
 		       , savefile, strftime("-%Y%m%d-%H%M%S"), savefile)))
@@ -265,7 +281,12 @@ BEGIN {
 		} else if (CGI["mode"] ~ /^(draft|edit-draft)$/)
 		    CGI["mode"] = "";
 		
-		ARGV[ARGC++] = viewfile;
+		FILE2TYPE[ ARGV[ARGC++] = viewfile ] = "DOC";
+		if (0) {
+		    metafile = OPT["META_DIR"] "/" DOCNAME;
+		    if (! CGI["mode"] && f_readable(metafile) > 0)
+			ARGV[ARGC++] = metafile;
+		}
 	    }
 	    
 	    if (savefile) {
@@ -273,13 +294,21 @@ BEGIN {
 		printf "%s", CGI["txt"] > savefile;
 		close(savefile);
 		if (CGI["mode"] == "save") {
-		    printf "Location: %s/%s\n\n", SELF, docfile;
+		    for (meta in CGI) {
+			if (!CGI[meta] || meta !~ /^meta/) continue;
+			check_meta(substr(meta, 5), CGI[meta], DOCNAME, 1);
+		    }
+			
+		    printf "Location: %s/%s\n\n", SELF, DOCNAME;
 		    exit(EXIT = 4);
 		}
-		ARGV[ARGC++] = savefile;
+		FILE2TYPE[ ARGV[ARGC++] = savefile ] = "DOC";;
 	    } 
-	} else
+	} else if (ENVIRON["PATH_INFO"] == "/") {
+	    DOC = "Sitemap";
+	} else {
 	    errstr = sprintf("Invalid document: %s\n",ENVIRON["PATH_INFO"]);
+	}
 	
 	printf "Content-Type: text/html\n\n";
 	if (CGI["mode"] ~ /^(cancel|save)$/) CGI["mode"] = "";
@@ -414,12 +443,81 @@ BEGIN {
 	html_close("table");
 	exit(EXIT = 0);
     }
+    PART = "DOC";
+}
+function node(u,ary,up,l, i, ary2,a) {
+    a = 0;
+    for (i = 1; i <= ary[0]; i++)
+	if (up[ary[i]] == u) ary2[++a] = ary[i];
+    asort(ary2);
+    ary2[0] = a;
+    for (a = 1; a <= ary2[a]; a ++) {
+	i = ary_index(ary, ary2[a]);
+	if (! ary[i]) continue;
+	if (l) 
+            list_wiki2html(str_repeat(";", l));
+	else if (a == 1) 
+	    printf "[ ";
+	else 
+	    printf " | ";
+	printf "%s", a_href(ary[i]);
+        if (l) node(i, ary, up, l+1);
+    }
+    if (! l && a >= 1) printf " ]";
+}
+function count_meta(u,ary,up, i,c) {
+    c = 0;
+    for (i = 1; i <= ary[0]; i++)
+        if (up[ary[i]] == u) c ++;
+    return c;
+}
+function show_meta(meta, val, ary,up,key,i,u,file) {
+    if (! is_docname(meta)) return;
+    ary[0] = 0;
+    up[0]  = 0;
+    file = OPT["META_DIR"] "/" meta;
+    while ((getline < (file)) > 0) {
+        if (substr($0, 1, 1) == ";") {
+	    u = ary_index(ary, key = trim(substr($0, 2)));
+	    if (u > ary[0]) {
+	        ary[ary[0] = u] = key;
+	        up[key] = 0;
+	    }
+	} else if (substr($0, 1, 1) == ":") {
+	    i = ary_index(ary, key = trim(substr($0, 2)));
+	    if (i > ary[0]) ary[ary[0] = i] = key;
+	    up[key] = u;
+	}
+    }
+    close(file);
+    if (val) {
+	if (count_meta(u = ary_index(ary, DOCNAME), ary, up)) {
+#	    html_head(0, val "/" DOCNAME);
+	    html_head(HEADING_LEVEL = 2, "Overview");
+	    node(u, ary, up, 2);
+	}
+	if (val == DOCNAME) return;
+	
+	if (count_meta(u = ary_index(ary, val), ary, up) <= 1) return;
+#	html_tag("-");
+	html_tag("p");
+	html_head(0, meta "/" val ": ");
+	node(u, ary, up, 0);
+	html_close("p");
+    } else {
+	if (count_meta(0, ary, up))
+	    html_head(HEADING_LEVEL = 2, meta " Overview");
+	node(0, ary, up, 2);
+    }
 }
 END {
     if (EXIT) exit(EXIT);
+    
+    if (! DOCNAME) html_head(1, DOC);
+    PART = "REF";
 
     if (REF[0] && TAG[0]) {
-	html_tag("h2", "", "References");
+	html_head(2, "References");
 	html_tag("ol"); # ul
 	for (i = 1; i <= REF[0]; i ++) {
 	    html_tag("li");
@@ -435,6 +533,56 @@ END {
 	html_tag("-"); # close the last tag
     }
 
+    PART = "META";
+
+    if (! CGI["mode"]) {
+	html_tag("hr");
+	html_tag("div", "style='font-size:10px'");
+
+	show_meta(DOCNAME, "");
+
+      if (1) {	
+	cmd = "ls -1 " OPT["META_DIR"] "/[a-z0-9A-Z]*[a-z0-9A-Z]";
+	while (( cmd | getline) > 0) {
+	    if (! match($0, /[^\/]+$/)) continue;
+	    meta = substr($0, RSTART);
+	    if (! KEYVALUE[meta])
+		show_meta(meta, DOCNAME);
+	}
+	close(cmd);
+      } else {
+	if (! KEYVALUE["Category"])
+	    show_meta("Category", DOCNAME);
+      }
+        for (meta in KEYVALUE) {
+	    if (! KEYVALUE[meta]) continue;
+	    show_meta(meta, KEYVALUE[meta]);
+#	if (! check_meta(meta, KEYVALUE[meta], DOC, 0)) {
+#	    show_meta(meta, DOCNAME);
+	}
+        if (1) {
+	    ary[0] = split("http://www.google.de/search?q=" \
+			 " http://de.wikipedia.org/wiki/" \
+			 " http://en.wikipedia.org/wiki/" \
+			 , ary);
+	
+	    html_tag("p");
+	    html_head(0, "Search '"DOC"': ");
+	    
+	    for (i = 1; i <= ary[0]; i++)
+		if (match(ary[i], /^https?:\/\/(www\.)?([^\/]+)/, a))
+		    printf "%s%s", (i == 1) ? "[ " : " | " \
+			, a_href(ary[i] DOC, a[2]);
+	    printf " ]";
+	    html_close("p");
+	}
+	    
+ #   printf "%s\n", a_href("" DOC);
+#    printf "%s\n", a_href(" DOC);
+
+	html_tag("-");
+	html_close("div");
+    }
     if (TOC[0] > 1 && ! CGI["mode"]) {
 	html_tag("div", "class='toc' id='TOC' onmouseover='toc(this, 1);' onmouseout='toc(this, 0);'");
 	html_via_js("<div style='text-align:right'>[<a href='javascript:toc_close();'>-</a>]</div>");
@@ -449,8 +597,13 @@ END {
 	html_via_js("[<a href='javascript:toc_open();'>+</a>]");
 	html_close("div");
     }
+
+    
+    PART = "FOOT";
+    
+
     if (ENVIRON["SERVER_PROTOCOL"] ~ /^HTTP/ && TAG[0]) {
-	html_tag("hr");
+	if (LAST_TAG != "hr") html_tag("hr");
 
 	if (RW && (CGI["mode"] == "edit" \
 		|| CGI["mode"] == "preview" \
@@ -458,14 +611,14 @@ END {
 		)) {
 	    if (CGI["mode"] == "edit") CGI["txt"] = RAW;
 	    html_tag("a", "name='edit'", " ");
-	    printf "\n<form method='POST' action='%s%s'>" \
+	    html_tag("form", sprintf("method='POST' action='%s%s'" \
 		    , ENVIRON["SCRIPT_NAME"] \
 		    , ENVIRON["PATH_INFO"] \
-		    ;
-	    txt = CGI["txt"];
+		    ));
+txt = CGI["txt"];
 	    gsub(/\&/, "\\&amp;",txt);
 	    printf "\n<textarea style='width:100%' rows='25' name='txt'>%s</textarea>",txt;
-	    printf ("<div style='width:100%;' class='tool'>");
+	    html_tag("div", "style='width:100%;' class='tool'");
 	    ary[0] = split("preview save cancel",ary);
 	    if (OPT["DRAFT_VIEW"]) ary[++ary[0]] = "discard";
 	    if (SRC_FILE) ary[++ary[0]] = "diff-edit";
@@ -473,13 +626,26 @@ END {
 		printf "<input type='submit' name='mode' value='%s' class='tool'>", ary[i];
 	    if (OPT["LOGIN"])
 		printf "User: %s\n", ENVIRON["REMOTE_USER"];
-
-	    printf "</div>\n";
-	    printf "</form>";
+	    
+	    html_close("div");
+	    html_tag("hr"); 
+	    for (meta in KEYVALUE) {
+	        if (! KEYVALUE[meta]) continue;
+		if (! check_meta(meta, KEYVALUE[meta], DOC, 0)) {
+		    html_tag("input", "type='hidden' name='meta"meta"' value='"KEYVALUE[meta]"'");
+		}
+	    }
+	    html_close("form");
 	} else {
+	    html_tag("form", sprintf("method='POST' action='%s%s'" \
+		    , ENVIRON["SCRIPT_NAME"] \
+		    , ENVIRON["PATH_INFO"] \
+		    ));
+
 	    html_tag("div", "style='width:100%' class='tool'");
-	    html_tag("a", "href='" SELF "?mode=' class='tool'", "toc");
-	    html_tag("a", "href='?mode=' class='tool'", "reload");
+	    html_tag("a", "href='" SELF "' class='tool'", "home");
+	    html_tag("a", "href='" SELF "/' class='tool'", "sitemap");
+	    html_tag("a", "href='' class='tool'", "reload");
 	    if (SRC_FILE && (OPT["LOGIN"] <= 2 || ENVIRON["REMOTE_USER"]))
 	        html_tag("a", "href='?mode=source' class='tool'", "source");
 	    
@@ -489,8 +655,13 @@ END {
 	            html_tag("a", "href='?mode=diff-draft' class='tool'", "diff-draft");
 		if (RW) 
 		    html_tag("a", "href='?mode=edit-draft' class='tool'", "edit-draft");
-	    } else if (RW)
+	    } else if (RW) {
 	        html_tag("a", "href='?mode=edit#edit' class='tool'", "edit");
+
+		html_tag("input", "type='text' name='new' value='"CGI["new"]"'");
+		html_tag("input", "type='submit' value='new' class='tool'");
+
+	    }
 
 	    if (OPT["LOGIN"]) {
 		if (ENVIRON["REMOTE_USER"])
@@ -500,9 +671,21 @@ END {
 	    }
 	    if (OPT["HTML_CHECK"]) print OPT["HTML_CHECK"];
 	    html_close("div");
+	    html_close("form");
 	}
+
+	if (LAST_TAG != "hr") html_tag("hr");
+
+	if (1 && ! CGI["mode"] && KEYWORDS[0]) {
+	    for (meta in KEYVALUE) {
+		if (! KEYVALUE[meta]) continue;
+#		print "read .. %s  ..\n", meta;
+		check_meta(meta, KEYVALUE[meta], DOCNAME, 0);
+	    }
+	}
+
 	if (UPTIME) {
-	    html_tag("hr");
+#	    html_tag("hr");
 	    html_tag("div", "", sprintf("<i>%s (-%.2fs)</i>" \
 	       , strftime("%A %F %T %Z") \
 	       , uptime() - UPTIME \
@@ -525,11 +708,13 @@ function diff_html (row, text, class) {
     html_tag("th", (class = "class='" class "'") " align='right'", row);
     html_tag("td", class, "<code>" text "</code>");
 }
-function f_readable (file, c) {
+function f_readable (file, c, save) {
     if (file ~ /^\/dev\/std(out|err)/) return 0;
+    save = $0;
 #    if (file ~ /[\/\?\*]/) exit; # FIXME ?
     c = getline < (file);
     close(file);
+    $0 = save;
     return c;
 }
 function abs_path (file, ary) {
@@ -664,14 +849,14 @@ function html_tag(tag,attr,html,  i,br) {
 	
     }
 
-    IN_TAG[tag] ++;
+    IN_TAG[LAST_TAG = tag] ++;
     if (attr = trim(attr)) 
 	attr = " " attr;
     else if (tag == "tr")
 	attr = " class='" ((IN_TAG[tag] % 2) ? "even" : "odd") "'";
 
     if (TAG[0] && br) TAG_IDENT[TAG[0]] ++;
-    if (tag !~ /^(br|hr|img|link|meta)$/) {
+    if (tag !~ /^(br|hr|img|input|link|meta)$/) {
 	TAG[++TAG[0]] = tag;
 	TAG_IDENT[TAG[0]] = 0;
     }
@@ -697,6 +882,12 @@ function str_repeat(str,count, ret,i) {
 function ary_index(ary, element, i) {
     i = 1;
     while (i <= ary[0] && ary[i] != element) i++;
+    return i;
+}
+function ary_u_add(ary, element, i) {
+#    if (! element) return 0;
+    ary[i = ary_index(ary, element)] = element;
+    if (ary[0] < i) ary[0] = i;
     return i;
 }
 function detect_align(text,  lspaces, rspaces) {
@@ -738,6 +929,58 @@ function rindex(str, find, i) {
     i = length(str) - length(find) +1;
     while (i > 0 && substr(str, i, length(find)) != find) i --;
     return (i > 0) ? i : 0;
+}
+function is_word(text) {
+    text = trim(text);
+    return (text ~ /^[A-Za-z0-9_]+$/) ? text : "";
+}
+function check_meta(meta,key,val,save, file, a) {
+    if (! is_docname(meta) || ! OPT["META_DIR"]) return;
+    file = OPT["META_DIR"] "/" meta;
+    while ((getline < (file)) > 0) {
+	a["b"] = "";
+	if (substr($0, 1, 1) == ";") {
+	    if (a["key"] && a["key"] == key && val) {
+		a["buffer"] = a["buffer"] sprintf("<i>%s</i>\n", ":" val);
+		val = "";
+	    }
+	    a["key"] = trim(substr($0, 2));
+	    if (a["key"] == key) a["b"] = "b";
+	} else if (substr($0, 1, 1) == ":") {
+	    a["val"] = trim(substr($0, 2));
+	    if (a["key"] == key && a["val"] && a["val"] == val) {
+		a["b"] = "b";
+	        val = "";
+	    }
+	} else if (a["key"] && a["key"] == key && val) {
+	    a["buffer"] = a["buffer"] sprintf("<i>%s</i>\n", ":" val);
+	    val = "";
+	}
+	a["buffer"] = a["buffer"] ((a["b"]) ? "<b>" $0 "</b>" : $0) "\n";
+    }
+    if (val) {
+	if (a["key"] != key)
+	    a["buffer"] = a["buffer"] sprintf("\n<i>%s</i>\n", ";" key);
+	a["buffer"] = a["buffer"] sprintf("<i>%s</i>\n", ":" val);
+    }
+    close(file);
+
+    if ((val = (a["buffer"] ~ /\<i\>/)) && ! save) {
+#	    printf "= <b>%s</b> =\n", meta;
+	    gsub(/<i>/, "<i class='diff_in'>", a["buffer"]);
+	    gsub(/<b>/, "<b class='diff_mod'>", a["buffer"]);
+	    html_head(h2, "Metadata: "meta);
+	    html_tag("pre");
+	    printf "%s\n", a["buffer"];
+	    html_close("pre");
+    }
+
+    if (val && save) {
+        gsub(/<[^>]*>/, "", a["buffer"]);
+	printf "%s", a["buffer"] > file;
+	close(file);
+    }
+    return (val) ? 0 : 1;
 }
 function formating(str \
 	, wiki2html, found, tags, d,s, dst_tag, dst_pos, src_tag, src_pos) {
@@ -803,7 +1046,22 @@ function formating(str \
 #    str = str "(loops: " loops ")"; 
     return str;
 }
-function a_href(link, html, class) {
+function have_doc(str) {
+    if (is_docname(str)) {
+	if (HAVE_DOC[str] == "")
+	    if ((HAVE_DOC[str] = f_readable(OPT["DOC_DIR"] "/" str)) <= 0)
+		HAVE_DOC[str] = f_readable(OPT["META_DIR"] "/" str);
+
+	return HAVE_DOC[str];
+    }
+}
+function is_docname(str) {
+    return ( trim(str, 3) == str \
+	  && length(str) >= 1 \
+	  && length(str) <= OPT["MAX_INTERNALLINK_LENGTH"] \
+	   ) ? str : "";
+}
+function a_href(link,html, class) {
     if (link ~ /^#/) {
 	if (! html) html = substr(link, 2);
         link = "#" gensub(/ /, "_", "g", substr(link, 2));
@@ -811,7 +1069,9 @@ function a_href(link, html, class) {
     } else if (link ~ /^[^\/]+$/) { # internal
         if (! html) html = link;
 	link = trim(link, 3);
-	if (f_readable(OPT["DOC_DIR"] "/" link) > 0)
+	if (link == DOCNAME) 
+	    class = "current";
+	else if (have_doc(link) > 0)
 	    class = "intern";
 	else 
 	    class = "intern_missing";
@@ -821,6 +1081,28 @@ function a_href(link, html, class) {
     }
     return sprintf("<a href='%s' class='%s'>%s</a>", link, class, html);
 }
+function add_toc(level,text, u) {
+    # 0 level
+    # 1 unique name
+    # 2 text
+    TOC[++TOC[0],0]= level;
+    TOC[TOC[0],2] = text;
+    return TOC[TOC[0],1] = unique_name(text);
+    return sprintf("<a name='%s' id='%s' href='#%s' class='head'>%s</a>",TOC[TOC[0],1] = u = unique_name(text), u, u, raw2html(text,1));
+}
+function html_head(level,text, u) {
+    u = sprintf("<a name='%s' id='%s' href='#%s' class='head'>%s</a>" \
+	    , u = add_toc(((level) ? level : HEADING_LEVEL+1), text) \
+	    , u, u, raw2html(text, 1) \
+	    );
+
+    if (level)	
+        html_tag("h" level, "class='" PART "'", u);
+    else
+	printf "%s", u;
+}
+
+#
 function img_key(location) {
     if (OPT["UPLOAD_DIR"] && f_readable(OPT["UPLOAD_DIR"] "/" location) > 0)
 	return "UPLOAD";
@@ -943,7 +1225,7 @@ function mw_img(location, opts,  ary, a, title, ary2, css) {
 	return img("File:", location, title, ary);
     }
 }
-function text2html(str,  ary, left, start, e) {
+function text2html(str,  ary, left, e) {
 
     # Creole Nowiki (Preformatted) Inline 
     if (left = index(str, "{{{")) {
@@ -989,9 +1271,7 @@ function text2html(str,  ary, left, start, e) {
 	left = left substr(str, 1, RSTART -1);
 	str = substr(str, RSTART + RLENGTH);
 	if (match(str, /<\/ref[[:space:]]*>/)) {
-	    e = ary_index(REF, start = substr(str, 1, RSTART -1));
-	    if (REF[0] < e) REF[0] = e;
-	    REF[e] = start;
+	    e = ary_u_add(REF, substr(str, 1, RSTART -1));
 	    left = left \
 		sprintf("<sup>[<a href='#_ref_%d' name='ref_%d' class='ref'>%d</a>]</sup>" \
 		, e, e, e);
@@ -1042,8 +1322,12 @@ function text2html(str,  ary, left, start, e) {
 	}
 	str = left substr(str, RSTART + RLENGTH);
     }
-    
-    printf "%s", formating(raw2html(str));
+    # FIXME: quick & dirty
+    if ((left = is_word(str)) && have_doc(left) > 0) {
+	printf "%s", a_href(left);
+    } else {
+        printf "%s", formating(raw2html(str));
+    }
 }
 function trim(str,f) {
     gsub(/^[[:space:]]+/, "", str);
@@ -1168,9 +1452,8 @@ CREOLE_TABLE {
 }
 # Headings
 match($0, /^(=+)([^=]+)(=+)/, ary) {
-    TOC[++TOC[0],0]= HEADING_LEVEL = length(ary[length(ary[1]) >= length(ary[3]) ? 1 : 3]);
-    TOC[TOC[0],2] = text = substr(ary[1], HEADING_LEVEL +1) ary[2] substr(ary[3], HEADING_LEVEL +1);
-    html_tag("h" HEADING_LEVEL, "", sprintf("<a name='%s' id='%s' href='#%s' class='head'>%s</a>",TOC[TOC[0],1] = n = unique_name(text), n, n, raw2html(text,1)));
+    HEADING_LEVEL = length(ary[length(ary[1]) >= length(ary[3]) ? 1 : 3]);
+    html_head(HEADING_LEVEL, ary[2]);
     next;
 }
 # MediaWiki table
@@ -1220,14 +1503,54 @@ TABLE && match($0,/^[[:space:]]*([\|!])/,ary) {
     }
     next;
 }
+
 # unordered-, ordered- and definition list
 (/^([#;:\*]+)/ && match(formating($0), /^([#;:\*]+)/)) {
     lists = substr($0, 1 ,RLENGTH);
     $0 = substr($0, RSTART + RLENGTH);
     list_wiki2html(lists);
+    if (lists ~ /;/) {
+	if (match($0, /: +[^ ]/)) {
+	    i = RSTART;
+	    rest = substr($0, i);
+	    $0 = substr($0, 1, i -1);
+	} else {
+	    rest = "";
+	}
+	if (DT_WORD = is_word($0)) {
+	    ary_u_add(KEYWORDS, DT_WORD);
+	    if (have_doc(DT_WORD) > 0) {
+		printf "<a name='%s' id='%s' href='%s' class='intern'>%s</a>" \
+		    , u = add_toc(HEADING_LEVEL +1, DT_WORD) \
+		    , u, DT_WORD, $0
+		    ;
+		$0 = "";
+	    }
+	} 
+	if ($0) {
+	    printf "<a name='%s' id='%s' href='#%s' class='head'>%s</a>" \
+	        , u = add_toc(HEADING_LEVEL +1, $0), u, u, raw2html($0, 1) \
+		;
+        }
+
+	if (rest) {
+	    list_wiki2html(substr(lists, 1, length(lists) -1) substr(rest, 1, 1));
+	    $0 = substr(rest, 2);
+	    if (FILE2TYPE[FILENAME] == "DOC" && DT_WORD && val = is_word($0)) 
+		KEYVALUE[DT_WORD] = val;
+	} else {
+	    next;
+	}
+    } else if (lists ~ /:/) {
+	if (FILE2TYPE[FILENAME] == "DOC" && DT_WORD && val = is_word($0)) 
+	    KEYVALUE[DT_WORD] = val;
+    } else {
+	DT_WORD = "";
+    }
     text2html($0);
     next;
 }
+DT_WORD = "";
 # MediaWiki preformated line (but wiki interpreted)
 /^ / {
 #       printf "<!-- last TAG(%d)='%s'-->", TAG[0],TAG[TAG[0]];
