@@ -2,7 +2,21 @@
 == About ==
 Alawiki is a simple and very fast WikiEngine (really faster than MediaWiki<ref>http://www.mediawiki.org</ref> and others).
 
+=== Download ===
+[[../alawiki-20101214.tgz|alawiki-20101214.tgz]]
+
 === Changes ===
+; wiki-20101214.tgz
+: added: environment variables SITE_DIR and SITE_URL
+: changed: use relative symlinks instead of absolute in DOC_DIR
+: {{{ # find wikidocs/ -type l -printf "%p %l\n"|while read l f;do ln -sfn "${f##*/}" "$l";done # abs -> rel symlinks }}}
+
+; wiki-20101212
+: bugfix: https in wiki url
+: bugfix: support inline formating in list items (see [[test3]])
+: bugfix: close P tag when open DIV tag (see [[Warzone_2100]])
+: bugfix: filter debug variables and values (see [[wiki.cgi?debug=2]])
+
 ; wiki-20100605
 : added: meta data support via definition lists
 : added: automatically linking of keywords
@@ -77,11 +91,17 @@ Alawiki is a simple and very fast WikiEngine (really faster than MediaWiki<ref>h
 === Components ===
 * [[../wiki2html.awk|wiki2html.awk]]: text prozessor
 * [[../wiki.cgi|wiki.cgi]]: symlink to wiki2html.awk
+* [[../wiki.js|wiki.js]]: JavaScript
+* [[../wiki.css|wiki.css]]: Stylesheet
 
 ==== Optional ====
-* [[../wiki.css|wiki.css]]: Stylesheet
 * header: <span style='color:red'>TODO</span>
 * footer: <span style='color:red'>TODO</span>
+
+Sample .htaccess
+ Options +ExecCGI +FollowSymlinks
+ RewriteEngine on
+ RewriteRule  ^$ /wiki.cgi
 
 === Limits ===
 The page name must be between 3 and 32 characters long. They can contain letters (A-Z, a-z), numbers (0-9) or underscores (_).
@@ -416,7 +436,12 @@ not [[#anchor]]
  |} 
 
 === TODOs ===
-Multible and/or grouped cites<ref>http://www.mediawiki.org/wiki/Extension:Cite/Cite.php#Usage</ref> with <code><ref></code> aren't supported.
+* Multible and/or grouped cites<ref>http://www.mediawiki.org/wiki/Extension:Cite/Cite.php#Usage</ref> with <code><ref></code> aren't supported.
+; Functions:
+: Search
+: Authent
+: History
+: Inline documents
 
 == Links ==
 * WikiWiki [http://c2.com/cgi/wiki?WikiWikiSandbox Sandbox]

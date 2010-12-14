@@ -3,7 +3,7 @@ th { background-color: #ddd; }
 tr.even { background-color: #e8e8e8; }
 tr.odd  { background-color: #f0f0f0; }
 pre { background-color: #222 ; color: #eee ; border: 1px; }
-.tool, .ref { 
+.tool, .tool_on, .ref { 
     color:#002;
     text-decoration:none;
 }
@@ -34,7 +34,7 @@ a.extern {
     color: #448;
 }
     
-a.tool, input.tool {
+a.tool, a.tool_on, input.tool, input.tool_on {
     padding: 2px;
     margin-left: 3px;
     margin-right: 3px;
@@ -47,6 +47,13 @@ a.tool, input.tool {
 
 a.head {
     color: #004;
+}
+a.tool_on, input.tool_on {
+    background-color: #aaa;
+    border-top:    2px solid #ccc;
+    border-left:   1px solid #ccc;
+    border-bottom: 2px solid #888;
+    border-right:  1px solid #888;
 }
 a.tool:hover, input.tool:hover {
     background-color: #088;
@@ -115,7 +122,10 @@ img.bordered {
     border: 2px solid #888;
 }
 
-p:hover, tr:hover, li:hover, h1:hover,h2:hover, h3:hover, h4:hover {
+p:hover, tr:hover, li:hover, dl:hover, h1:hover,h2:hover, h3:hover, h4:hover {
+    background-color:#f7f7f7;
+}
+td:hover, ul:hover, ol:hover, dt:hover,dd:hover {
     background-color:#ffffff;
 }
 

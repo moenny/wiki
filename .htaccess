@@ -5,6 +5,9 @@
 #require valid-user
 #</Limit>
 
+#SetEnv SITE_DIR "/srv/max/nfshome/project/www/dedi/wiki/"
+#SetEnv SITE_URL "../../dedi/wiki/"
+
 RewriteEngine   On
 #RewriteOptions  Inherit
 
