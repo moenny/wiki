@@ -6,6 +6,10 @@
 #</Limit>
 
 #SetEnv SITE_DIR "/srv/max/nfshome/project/www/dedi/wiki/"
+SetEnvIf Request_URI /wiki/wiki\.cgi        SITE_DIR=/srv/max/nfshome/project/data/wiki-private/
+SetEnvIf Request_URI /wiki-public/wiki\.cgi SITE_DIR=/srv/max/nfshome/project/www/dedi/wiki/
+
+#SetEnv SITE_DIR "/srv/max/nfshome/project/data/wiki-private/"
 #SetEnv SITE_URL "../../dedi/wiki/"
 
 RewriteEngine   On

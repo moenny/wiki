@@ -113,7 +113,7 @@ BEGIN {
 	OPT["UPLOAD_DIR"] = abs_path(OPT["UPLOAD_DIR"]);
 	OPT["THUMB_DIR"] = abs_path(OPT["THUMB_DIR"]);
 	
-	SELF = ((ENVIRON["HTTPS"] ~ /^on$/i) ? "https://" : "http://") \
+	SELF = ((ENVIRON["HTTPS"] ~ /^on$/) ? "https://" : "http://") \
 		ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"];
 	if (ENVIRON["REQUEST_METHOD"] == "POST") {
 	    query= "";
@@ -141,7 +141,8 @@ BEGIN {
 		if (line != boundary "--\r")
 		    errstr = sprintf("upload error '%s'", boundary);
 		else {
-		    if ((CGI["file"] = is_docname(CGI["file"])) && \
+		    #if ((CGI["file"] = is_docname(CGI["file"])) && \
+		  if (CGI["file"] && CGI["file"] !~ /\// && \
 			CGI["upload"] && OPT["UPLOAD_DIR"] \
 			) {
 			if (f_readable(OPT["UPLOAD_DIR"] "/" CGI["file"])>=0) {
@@ -159,10 +160,15 @@ BEGIN {
 				);
 			}
 		    } else {
-		        errstr = sprintf("uploaded %d %d %d bytes" \
+		        errstr = sprintf("uploaded %d %d %d bytes in %s/%s (%s:%s:%s)" \
 			    , length(CGI["pre"]) \
 			    , length(CGI["upload"]) \
 			    , length(CGI["post"]) \
+			    , OPT["UPLOAD_DIR"] \
+			    , CGI["file"] \
+			    , is_docname(CGI["file"]) \
+			    , trim(CGI["file"],3) \
+			    , trim(CGI["file"],4) \
 			    );
 		    }
 		}
