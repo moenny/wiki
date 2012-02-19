@@ -112,8 +112,11 @@ BEGIN {
 	OPT["IMG_DIR"] = abs_path(OPT["IMG_DIR"]);
 	OPT["UPLOAD_DIR"] = abs_path(OPT["UPLOAD_DIR"]);
 	OPT["THUMB_DIR"] = abs_path(OPT["THUMB_DIR"]);
-	
-	SELF = ((ENVIRON["HTTPS"] ~ /^on$/) ? "https://" : "http://") \
+
+	if (ENVIRON["SELF"])
+	    SELF = ENVIRON["SELF"]
+	else
+	    SELF = ((ENVIRON["HTTPS"] ~ /^on$/) ? "https://" : "http://") \
 		ENVIRON["SERVER_NAME"] ENVIRON["SCRIPT_NAME"];
 	if (ENVIRON["REQUEST_METHOD"] == "POST") {
 	    query= "";

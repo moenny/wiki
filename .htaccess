@@ -6,17 +6,28 @@
 #</Limit>
 
 #SetEnv SITE_DIR "/srv/max/nfshome/project/www/dedi/wiki/"
-SetEnvIf Request_URI /wiki/wiki\.cgi        SITE_DIR=/srv/max/nfshome/project/data/wiki-private/
-SetEnvIf Request_URI /wiki-public/wiki\.cgi SITE_DIR=/srv/max/nfshome/project/www/dedi/wiki/
+
+#SetEnvIf Request_URI /wiki/wiki\.cgi        SITE_DIR=/srv/max/nfshome/project/data/wiki-private/ SITE_URL=. SELF=/project.new/wiki/
+#SetEnvIf Request_URI /wiki-public/wiki\.cgi SITE_DIR=/srv/max/nfshome/project/www/dedi/wiki/
 
 #SetEnv SITE_DIR "/srv/max/nfshome/project/data/wiki-private/"
 #SetEnv SITE_URL "../../dedi/wiki/"
 
-RewriteEngine   On
+#RewriteEngine   Off
 #RewriteOptions  Inherit
 
-RewriteRule  ^$ wiki.cgi 
+##RewriteBase /
+##RewriteCond %{REQUEST_URI} !=/project\.new/wiki/wiki\.cgi
+##RewriteCond %{REQUEST_URI} !=/project\.new/wiki/env\.cgi
+#RewriteCond %{REQUEST_URI} !^/project.new/wiki/(.*)\.(cgi|js|css)
+#RewriteRule  ^env /project.new/wiki/env.cgi/$1  [L,PT]
 
+##RewriteRule  ^([a-t].*) /project.new/wiki/wiki.cgi/$1  [L,PT]
+#RewriteCond %{REQUEST_URI} !^/project.new/wiki/(.*)\.(cgi|js|css)
+#RewriteRule  ^(.*) /project.new/wiki/wiki.cgi/$1  [L,PT]
+
+
+#DirectoryIndex wiki.cgi
 
 #RewriteRule    wiki\.(cgi|css)(.*)$  - [L]
 
